@@ -40,6 +40,7 @@ RUN apt-get update -y && \
     cmake \
     make \
     autoconf \
+    autoconf-archive \
     gawk \
     libtool \
     automake \
@@ -64,7 +65,7 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 #
 RUN echo "35.165.179.212 gerrit.oran-osc.org" >> /etc/hosts \
     && mkdir -p /opt/build \
-    && cd /opt/build && git clone https://gerrit.oran-osc.org/r/log \
+    && cd /opt/build && git clone https://gerrit.oran-osc.org/r/com/log \
     && cd log/ ; ./autogen.sh ; ./configure ; make ; make install \
     && ldconfig
 
