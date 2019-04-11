@@ -37,28 +37,29 @@ TBD later
 ## Prerequisites
 Make sure that following tools are properly installed and configured
 * GO (golang) development and runtime tools
+* mdclog (com/log)
 * Docker
 * Kubernates and related tools (kubectl and helm)
 * Xapp Docker repo (either local or remote)
 * Xapp Helm charts
-* com/log
+* ...
 
 ## Building go binary and docker container for xApp Manager
  ```sh
-# Change to build-folder and run following command
+# Run following command. Make sure that mdclog is installed and found in the standard library path
 make docker-build
 ```
 
 ## Running xApp Manager unit tests
  ```sh
-# Change to build-folder and run following command
+# Run following command
 make test
 ```
 
 ## Running xApp Manager locally
 ```sh
 # Now run the xApp manager
-./xapp_mgr -f ../config/appmgr.yaml
+build/appmgr -f config/appmgr.yaml
 ```
 
 # Running Docker container of xApp manager

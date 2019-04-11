@@ -18,6 +18,7 @@
 */
 
 package main
+
 /*
 #cgo CFLAGS: -I/usr/local/include
 #cgo LDFLAGS: -lmdclog
@@ -30,22 +31,26 @@ void xAppMgr_mdclog_write(mdclog_severity_t severity, const char *msg) {
 import "C"
 
 import (
-    "net/http"
-    "time"
-    "fmt"
+	"fmt"
+	"net/http"
+	"time"
 )
 
 func mdclog(severity C.mdclog_severity_t, msg string) {
-    msg = fmt.Sprintf("%s:: %s ", time.Now().Format("2019-01-02 15:04:05"), msg)
+	msg = fmt.Sprintf("%s:: %s ", time.Now().Format("2019-01-02 15:04:05"), msg)
 
-    C.mdclog_mdc_add(C.CString("XM"), C.CString("1.0.0"))
-    C.xAppMgr_mdclog_write(severity, C.CString(msg))
+	C.mdclog_mdc_add(C.CString("XM"), C.CString("1.0.0"))
+	C.xAppMgr_mdclog_write(severity, C.CString(msg))
+}
+
+func mdclogSetLevel(severity C.mdclog_severity_t) {
+	C.mdclog_level_set(severity)
 }
 
 func Logger(inner http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        inner.ServeHTTP(w, r)
-        s := fmt.Sprintf("Logger: method=%s url=%s", r.Method, r.URL.RequestURI())
-        mdclog(C.MDCLOG_DEBUG, s)
-    })
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inner.ServeHTTP(w, r)
+		s := fmt.Sprintf("Logger: method=%s url=%s", r.Method, r.URL.RequestURI())
+		mdclog(C.MDCLOG_DEBUG, s)
+	})
 }

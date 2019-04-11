@@ -19,38 +19,13 @@
 
 package main
 
-import (
-    "flag"
-    "log"
-    "github.com/spf13/viper"
-    "github.com/fsnotify/fsnotify"
-)
+func main() {
+	mdclogSetLevel(MdclogDebug)
 
-const DEFAULT_CONFIG_FILE = "../config/appmgr.yaml"
+	loadConfig()
 
-func parseCmd() string {
-    var fileName *string
-    fileName = flag.String("f", DEFAULT_CONFIG_FILE, "Specify the configuration file.")
-    flag.Parse()
+	m := XappManager{}
+	m.Initialize(&Helm{})
 
-    return *fileName
-}
-
-func loadConfig() {
-    viper.SetConfigFile(parseCmd())
-
-    if err := viper.ReadInConfig(); err != nil {
-        log.Fatalf("Error reading config file, %s", err)
-    }
-    log.Printf("Using config file: %s\n", viper.ConfigFileUsed())
-
-    // Watch for config file changes and re-read data ...
-    watch()
-}
-
-func watch() {
-    viper.WatchConfig()
-    viper.OnConfigChange(func(e fsnotify.Event) {
-        log.Println("config file changed ", e.Name)
-    })
+	m.Run()
 }

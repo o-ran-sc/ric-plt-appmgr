@@ -18,6 +18,7 @@
 "helm":
   "host": "192.168.0.12:31807"
   "repo": "/opt/ric/dummy-xapp-chart"
+  "repo-name": "dummy"
   "secrets":
     "username": "admin"
     "password": "ric"
@@ -26,7 +27,9 @@
 "xapp":
   "namespace": "ricxapp"
   "tarDir": "/tmp"
+  "msg_type_file": "msg_type.yaml"
 "db":
+  "sessionNamespace": "XMSession"
   "host": ":6379"
   "prot": "tcp"
   "maxIdle": 80

@@ -24,7 +24,7 @@ image:
   #repositoryCred:
   #  user: docker
   #  password: docker
-  pullPolicy: IfNotPresent
+  pullPolicy: Always 
   
 # This section describes xAppManager
   replicaCount: 1
@@ -43,7 +43,8 @@ service:
   port: 8080
   nodePort: 30218
   name: appmgr-service
-  health_check_endpoint: ric/v1/health  
+  health_alive_check_endpoint: ric/v1/health/alive
+  health_ready_check_endpoint: ric/v1/health/ready
 
 # config
 # Path referred in appmgr for retrieving configuration details
@@ -72,7 +73,10 @@ appconfig:
       "helm-password-file": "/opt/ric/secret/helm_repo_password"
     "xapp":
       #Namespace to install xAPPs
-      "namespace": ricxapp
+      "namespace": "ricxapp"
+
+      #File containing xAPP message types
+      "msg_type_file": "msg_type.yaml"
 
 # To be provided as env variables
 appenv:

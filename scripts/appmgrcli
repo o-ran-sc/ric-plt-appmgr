@@ -207,7 +207,7 @@ do_undeploy() {
   if [ "x$1" != "x" ]; then
     urlpath="$urlpath/$1"
     if rest DELETE $urlpath; then
-      # Currently xapp_manager returns an empty result if
+      # Currently appmgr returns an empty result if
       # undeploy is succesfull. Don't reformat file if empty.
       if [ -s $resultfile ]; then
         json_reformat < $resultfile
@@ -297,7 +297,7 @@ do_subscriptions() {
       fi
       if [ $status = 0 ]; then
         if rest DELETE $urlpath; then
-          # Currently xapp_manager returns an empty result if
+          # Currently appmgr returns an empty result if
           # delete is succesfull. Don't reformat file if empty.
           if [ -s $resultfile ]; then
             json_reformat < $resultfile

@@ -10,13 +10,13 @@
     }
   },
   "host": "hostname",
-  "basePath": "/ric/v1/xapps",
+  "basePath": "/ric/v1",
   "schemes": [
     "https",
     "http"
   ],
   "paths": {
-    "/ric/v1/health": {
+    "/health": {
       "get": {
         "summary": "Health check of xApp Manager",
         "operationId": "getHealth",
@@ -27,7 +27,7 @@
         }
       }
     },
-    "/ric/v1/xapps": {
+    "/xapps": {
       "post": {
         "summary": "Deploy a xapp",
         "operationId": "deployXapp",
@@ -91,7 +91,7 @@
         }
       }
     },
-    "/ric/v1/xapps/{xAppName}": {
+    "/xapps/{xAppName}": {
       "get": {
         "summary": "Returns the status of a given xapp",
         "operationId": "getXappByName",
@@ -150,7 +150,7 @@
         }
       }
     },
-    "/ric/v1/xapps/{xAppName}/instances/{xAppInstanceName}": {
+    "/xapps/{xAppName}/instances/{xAppInstanceName}": {
       "get": {
         "summary": "Returns the status of a given xapp",
         "operationId": "getXappInstanceByName",
@@ -192,7 +192,7 @@
         }
       }
     },
-    "/ric/v1/subscriptions": {
+    "/subscriptions": {
       "post": {
         "summary": "Subscribe event",
         "operationId": "addSubscription",
@@ -241,7 +241,7 @@
         }
       }
     },
-    "/ric/v1/subscriptions/{subscriptionId}": {
+    "/subscriptions/{subscriptionId}": {
       "get": {
         "summary": "Returns the information of subscription",
         "operationId": "getSubscriptionById",

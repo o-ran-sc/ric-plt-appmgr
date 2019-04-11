@@ -54,16 +54,18 @@ spec:
                 name: {{ .Release.Name }}-appenv
           livenessProbe:
             httpGet:
-              path: {{ .Values.service.health_check_endpoint }}
+              path: {{ .Values.service.health_alive_check_endpoint }}
               port: 8080
             initialDelaySeconds: 5
-            periodSeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: {{ .Values.service.health_check_endpoint }}
+              path: {{ .Values.service.health_ready_check_endpoint }}
               port: 8080
             initialDelaySeconds: 5
-            periodSeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
           restartPolicy: Always
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

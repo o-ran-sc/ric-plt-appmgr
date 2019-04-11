@@ -21,10 +21,6 @@ FROM ubuntu:16.04 as ubuntubase
 RUN apt-get update -y && \
     apt-get install -y wget
 
-#RUN sed -i -e 's,http://archive.ubuntu.com/ubuntu,mirror://mirrors.ubuntu.com/mirrors.txt,' /etc/apt/sources.list
-#RUN sed -i -e 's,http://security.ubuntu.com/ubuntu,mirror://mirrors.ubuntu.com/mirrors.txt,' /etc/apt/sources.list
-#RUN sed -i -e 's,http://archive.ubuntu.com/ubuntu,http://mirrors.nic.funet.fi/ubuntu,' /etc/apt/sources.list
-#RUN sed -i -e 's,http://security.ubuntu.com/ubuntu,http://mirrors.nic.funet.fi/ubuntu,' /etc/apt/sources.list
 
 RUN sed -i -e "s,http://archive.ubuntu.com/ubuntu,$(wget -qO - mirrors.ubuntu.com/mirrors.txt | head -1)," /etc/apt/sources.list
 RUN sed -i -e "s,http://security.ubuntu.com/ubuntu,$(wget -qO - mirrors.ubuntu.com/mirrors.txt | head -1)," /etc/apt/sources.list
@@ -68,13 +64,13 @@ RUN mkdir -p /opt/build \
     && cd log/ ; ./autogen.sh ; ./configure ; make ; make install \
     && ldconfig
 
-
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
 FROM ubuntubase as builder
 
-ARG HELMVERSION
+ARG PACKAGEURL=gerrit.oran-osc.org/r/ric-plt/appmgr
+ARG HELMVERSION=v2.13.0-rc.1
 
 #
 # helm
@@ -87,9 +83,9 @@ RUN wget https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linu
 
 
 #
-# xapp_manager codes
+# appmgr codes
 #
-RUN mkdir -p /go/src/appmgr
+RUN mkdir -p /go/src/${PACKAGEURL}
 ENV GOPATH="/go"
 
 #
@@ -103,36 +99,46 @@ RUN go get github.com/gorilla/mux \
     && go get gopkg.in/yaml.v2
 
 
-COPY . /go/src/appmgr
+COPY . /go/src/${PACKAGEURL}
 
 
 #
 # build
 #
-RUN make -C /go/src/appmgr/build deps
-
-RUN make -C /go/src/appmgr/build build
+RUN make -C /go/src/${PACKAGEURL} build
 
 
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
 FROM builder as test_unit
-WORKDIR "/go/src/appmgr"
-CMD ["make","-C","build", "unit-test"]
+ARG PACKAGEURL=gerrit.oran-osc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","test"]
 
+
+#----------------------------------------------------------
+#
+#----------------------------------------------------------
+FROM builder as test_fmt
+ARG PACKAGEURL=gerrit.oran-osc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","test-fmt"]
 
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
 FROM builder as test_sanity
-WORKDIR "/go/src/appmgr"
-CMD ["jq","-s",".", "rest_api/xapp_manager_rest_api.json"]
+ARG PACKAGEURL=gerrit.oran-osc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["jq","-s",".", "api/appmgr_rest_api.json"]
+
 
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
 FROM ubuntu:16.04 as release
+ARG PACKAGEURL=gerrit.oran-osc.org/r/ric-plt/appmgr
 
 RUN apt-get update -y \
     && apt-get install -y sudo openssl ca-certificates ca-cacert \
@@ -154,11 +160,11 @@ RUN ldconfig
 RUN mkdir -p /opt/xAppManager \
     && chmod -R 755 /opt/xAppManager
 
-COPY --from=builder /go/src/appmgr/build/appmgr /opt/xAppManager/appmgr
-#COPY --from=builder /go/src/appmgr/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
+COPY --from=builder /go/src/${PACKAGEURL}/build/appmgr /opt/xAppManager/appmgr
+#COPY --from=builder /go/src/${PACKAGEURL}/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
 
 
-COPY build/docker-entrypoint.sh /opt/xAppManager/
+COPY docker/docker-entrypoint.sh /opt/xAppManager/
 
 WORKDIR /opt/xAppManager
 
