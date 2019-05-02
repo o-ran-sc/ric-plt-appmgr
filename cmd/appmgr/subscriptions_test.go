@@ -175,7 +175,7 @@ func TestPublishXappAction(t *testing.T) {
 }
 
 func TestTeardown(t *testing.T) {
-	db := sdl.Create(viper.GetString("db.sessionNamespace"))
+	db := sdl.NewSdlInstance(viper.GetString("db.sessionNamespace"), sdl.NewDatabase())
 	db.RemoveAll()
 }
 

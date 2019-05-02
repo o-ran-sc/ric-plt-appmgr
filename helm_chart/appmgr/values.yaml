@@ -19,7 +19,7 @@
 # Modify this section to point to Docker image repository
 image:
   #repository: "snapshot.docker.ranco-dev-tools.eastus.cloudapp.azure.com:10001"
-  repository: "k8s-cluster-docker-helm-repo:5000"
+  repository: "192.168.0.6:5000"
   
   #repositoryCred:
   #  user: docker
@@ -31,7 +31,7 @@ image:
 
   # xAppmanager Docker image name and tag
   name: appmgr
-  tag: 1.0.0 
+  tag: 1.0.1
 
   #nameOverride: ""
   #fullnameOverride: ""
@@ -58,7 +58,7 @@ appconfig:
       "host": ":8080"
     "helm":
       # Remote helm repo URL. UPDATE this as required.
-      "repo": "https://k8s-cluster-docker-helm-repo/helm_charts"
+      "repo": "http://192.168.0.6/charts"
 
       # Repo name referred within the appmgr
       "repo-name": "helm-repo"
@@ -71,12 +71,14 @@ appconfig:
       # helm username and password files
       "helm-username-file": "/opt/ric/secret/helm_repo_username"
       "helm-password-file": "/opt/ric/secret/helm_repo_password"
+      "retry": 1
     "xapp":
       #Namespace to install xAPPs
       "namespace": "ricxapp"
-
-      #File containing xAPP message types
-      "msg_type_file": "msg_type.yaml"
+      "tarDir": "/tmp"
+      "schema": "descriptors/schema.json"
+      "config": "config/config-file.json"
+      "tmpConfig": "/tmp/config-file.json"
 
 # To be provided as env variables
 appenv:

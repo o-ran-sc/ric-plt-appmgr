@@ -33,7 +33,7 @@ type DB struct {
 
 func (d *DB) Create() {
 	ns := viper.GetString("db.sessionNamespace")
-	d.session = sdl.Create(ns)
+	d.session = sdl.NewSdlInstance(ns, sdl.NewDatabase())
 
 	// Test DB connection, and wait until ready!
 	for {

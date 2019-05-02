@@ -38,10 +38,12 @@ type Resource struct {
 }
 
 type Xapp struct {
-	Name      string         `json:"name"`
-	Status    string         `json:"status"`
-	Version   string         `json:"version"`
-	Instances []XappInstance `json:"instances"`
+	Name       string         `json:"name"`
+	ConfigName string         `json:"configName, omitempty"`
+	Namespace  string         `json:"namespace, omitempty"`
+	Status     string         `json:"status"`
+	Version    string         `json:"version"`
+	Instances  []XappInstance `json:"instances"`
 }
 
 type XappInstance struct {
@@ -63,7 +65,7 @@ type XappManager struct {
 
 type Helmer interface {
 	Initialize()
-	Install(name string) (xapp Xapp, err error)
+	Install(m ConfigMetadata) (xapp Xapp, err error)
 	Status(name string) (xapp Xapp, err error)
 	StatusAll() (xapps []Xapp, err error)
 	List() (xapps []string, err error)

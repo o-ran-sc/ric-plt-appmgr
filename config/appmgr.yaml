@@ -17,17 +17,20 @@
   "host": ":8080"
 "helm":
   "host": "192.168.0.12:31807"
-  "repo": "/opt/ric/dummy-xapp-chart"
-  "repo-name": "dummy"
+  "repo": "http://192.168.0.6/charts"
+  "repo-name": "helm-repo"
   "secrets":
     "username": "admin"
     "password": "ric"
   "helm-username-file": "./helm_repo_username"
   "helm-password-file": "./helm_repo_password"
+  "retry": 1
 "xapp":
   "namespace": "ricxapp"
   "tarDir": "/tmp"
-  "msg_type_file": "msg_type.yaml"
+  "schema": "descriptors/schema.json"
+  "config": "config/config-file.json"
+  "tmpConfig": "/tmp/config-file.json"
 "db":
   "sessionNamespace": "XMSession"
   "host": ":6379"

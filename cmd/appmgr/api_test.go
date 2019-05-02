@@ -56,7 +56,7 @@ func (h *MockedHelmer) List() (names []string, err error) {
 	return names, helmError
 }
 
-func (h *MockedHelmer) Install(name string) (Xapp, error) {
+func (h *MockedHelmer) Install(m ConfigMetadata) (Xapp, error) {
 	return xapp, helmError
 }
 

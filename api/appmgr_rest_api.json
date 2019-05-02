@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "description": "This is a draft API for RIC appmgr",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "title": "RIC appmgr",
     "license": {
       "name": "Apache 2.0",
@@ -474,6 +474,7 @@
           "enum": [
             "created",
             "deleted",
+            "updated",
             "all"
           ]
         }
@@ -502,6 +503,7 @@
           "enum": [
             "created",
             "deleted",
+            "updated",
             "all"
           ]
         },
@@ -533,7 +535,8 @@
           "description": "Event to be notified",
           "enum": [
             "created",
-            "deleted"
+            "deleted",
+            "updated"
           ]
         },
         "xApps": {
