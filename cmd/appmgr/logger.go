@@ -39,7 +39,7 @@ import (
 func mdclog(severity C.mdclog_severity_t, msg string) {
 	msg = fmt.Sprintf("%s:: %s ", time.Now().Format("2019-01-02 15:04:05"), msg)
 
-	C.mdclog_mdc_add(C.CString("XM"), C.CString("1.0.0"))
+	C.mdclog_mdc_add(C.CString("XM"), C.CString("1.0.1"))
 	C.xAppMgr_mdclog_write(severity, C.CString(msg))
 }
 

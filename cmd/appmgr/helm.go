@@ -24,12 +24,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,27 +37,19 @@ import (
 var execCommand = exec.Command
 
 func Exec(args string) (out []byte, err error) {
-	cmd := execCommand("/bin/sh", "-c", strings.Join([]string{"helm", args}, " "))
-
-	if !strings.HasSuffix(os.Args[0], ".test") {
-		out, err = cmd.CombinedOutput()
-		if err != nil {
-			mdclog(MdclogErr, formatLog("Command failed", args, err.Error()))
-		}
-		return out, err
-	}
+	cmd := execCommand("/bin/sh", "-c", args)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	log.Printf("Running command: %v", cmd)
-	for i := 0; i < 3; i++ {
+	log.Println("Running command: ", cmd)
+	for i := 0; i < viper.GetInt("helm.retry"); i++ {
 		err = cmd.Run()
 		if err != nil {
 			mdclog(MdclogErr, formatLog("Command failed, retrying", args, err.Error()+stderr.String()))
-			time.Sleep(time.Duration(5) * time.Second)
+			time.Sleep(time.Duration(2) * time.Second)
 			continue
 		}
 		break
@@ -71,6 +61,14 @@ func Exec(args string) (out []byte, err error) {
 	}
 
 	return stdout.Bytes(), errors.New(stderr.String())
+}
+
+func HelmExec(args string) (out []byte, err error) {
+	return Exec(strings.Join([]string{"helm", args}, " "))
+}
+
+func KubectlExec(args string) (out []byte, err error) {
+	return Exec(strings.Join([]string{"kubectl", args}, " "))
 }
 
 func (h *Helm) Initialize() {
@@ -95,11 +93,12 @@ func (h *Helm) Initialize() {
 		mdclog(MdclogErr, formatLog("Helm repo addition failed, retyring ...", "", ""))
 		time.Sleep(time.Duration(10) * time.Second)
 	}
+
 	h.initDone = true
 }
 
 func (h *Helm) Run(args string) (out []byte, err error) {
-	return Exec(args)
+	return HelmExec(args)
 }
 
 // API functions
@@ -110,7 +109,7 @@ func (h *Helm) Init() (out []byte, err error) {
 		return out, err
 	}
 
-	return Exec(strings.Join([]string{"init -c"}, ""))
+	return HelmExec(strings.Join([]string{"init -c"}, ""))
 }
 
 func (h *Helm) AddRepo() (out []byte, err error) {
@@ -138,24 +137,29 @@ func (h *Helm) AddRepo() (out []byte, err error) {
 	// Get helm repo address from values.yaml
 	repo := viper.GetString("helm.repo")
 
-	return Exec(strings.Join([]string{"repo add ", rname, " ", repo, username, pwd}, ""))
+	return HelmExec(strings.Join([]string{"repo add ", rname, " ", repo, username, pwd}, ""))
 }
 
-func (h *Helm) Install(name string) (xapp Xapp, err error) {
+func (h *Helm) Install(m ConfigMetadata) (xapp Xapp, err error) {
 	out, err := h.Run(strings.Join([]string{"repo update "}, ""))
 	if err != nil {
 		return
 	}
 
-	rname := viper.GetString("helm.repo-name")
+	m.Namespace = getNamespace(m.Namespace)
+	cm, cmErr := PurgeConfigMap(m)
 
-	ns := getNamespaceArgs()
-	out, err = h.Run(strings.Join([]string{"install ", rname, "/", name, " --name ", name, ns}, ""))
+	ns := " --namespace=" + m.Namespace
+	rname := viper.GetString("helm.repo-name")
+	out, err = h.Run(strings.Join([]string{"install ", rname, "/", m.Name, " --name ", m.Name, ns}, ""))
 	if err != nil {
 		return
 	}
 
-	return h.ParseStatus(name, string(out))
+	if cmErr == nil {
+		cmErr = RestoreConfigMap(m, cm)
+	}
+	return h.ParseStatus(m.Name, string(out))
 }
 
 func (h *Helm) Status(name string) (xapp Xapp, err error) {
@@ -181,8 +185,8 @@ func (h *Helm) StatusAll() (xapps []Xapp, err error) {
 
 func (h *Helm) List() (names []string, err error) {
 
-	ns := getNamespaceArgs()
-	out, err := h.Run(strings.Join([]string{"list --all --output yaml ", ns}, ""))
+	ns := getNamespace("")
+	out, err := h.Run(strings.Join([]string{"list --all --output yaml --namespace=", ns}, ""))
 	if err != nil {
 		mdclog(MdclogErr, formatLog("Listing deployed xapps failed", "", err.Error()))
 		return
@@ -214,45 +218,10 @@ func (h *Helm) Fetch(name, tarDir string) error {
 }
 
 // Helper functions
-func (h *Helm) GetMessages(name string) (msgs MessageTypes, err error) {
-	tarDir := viper.GetString("xapp.tarDir")
-	if tarDir == "" {
-		tarDir = "/tmp"
-	}
-
-	if h.Fetch(name, tarDir); err != nil {
-		mdclog(MdclogWarn, formatLog("Fetch chart failed", "", err.Error()))
-		return
-	}
-
-	return h.ParseMessages(name, tarDir, viper.GetString("xapp.msg_type_file"))
-
-}
-
-func (h *Helm) ParseMessages(name string, chartDir, msgFile string) (msgs MessageTypes, err error) {
-	yamlFile, err := ioutil.ReadFile(path.Join(chartDir, name, msgFile))
-	if err != nil {
-		mdclog(MdclogWarn, formatLog("ReadFile failed", "", err.Error()))
-		return
-	}
-
-	err = yaml.Unmarshal(yamlFile, &msgs)
-	if err != nil {
-		mdclog(MdclogWarn, formatLog("Unmarshal failed", "", err.Error()))
-		return
-	}
-
-	if err = os.RemoveAll(path.Join(chartDir, name)); err != nil {
-		mdclog(MdclogWarn, formatLog("RemoveAll failed", "", err.Error()))
-	}
-
-	return
-}
-
 func (h *Helm) GetVersion(name string) (version string) {
 
-	ns := getNamespaceArgs()
-	out, err := h.Run(strings.Join([]string{"list --output yaml ", name, ns}, ""))
+	ns := getNamespace("")
+	out, err := h.Run(strings.Join([]string{"list --output yaml --namespace=", ns, " ", name}, ""))
 	if err != nil {
 		return
 	}
@@ -336,10 +305,10 @@ func (h *Helm) ParseStatus(name string, out string) (xapp Xapp, err error) {
 	xapp.Version = h.GetVersion(name)
 	xapp.Status = h.GetState(out)
 
-	types, err := h.GetMessages(name)
+	types, err := GetMessages(name)
 	if err != nil {
 		// xAPP can still be deployed if the msg_type file is missing.
-		mdclog(MdclogWarn, formatLog("method GetMessages Failed....", "", err.Error()))
+		mdclog(MdclogWarn, formatLog("GetMessages Failed....", "", err.Error()))
 
 		//Set err back to nil, so it does not cause issues in called functions.
 		err = nil
@@ -376,12 +345,16 @@ func addTillerEnv() (err error) {
 	return err
 }
 
-func getNamespaceArgs() string {
+func getNamespace(namespace string) string {
+	if namespace != "" {
+		return namespace
+	}
+
 	ns := viper.GetString("xapp.namespace")
 	if ns == "" {
 		ns = "ricxapp"
 	}
-	return " --namespace=" + ns
+	return ns
 }
 
 func formatLog(text string, args string, err string) string {

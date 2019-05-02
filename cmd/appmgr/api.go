@@ -21,6 +21,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
 	"log"
@@ -30,12 +31,6 @@ import (
 // API functions
 
 func (m *XappManager) Initialize(h Helmer) {
-	/*
-		m.sd = SubscriptionDispatcher{}
-		m.sd.Initialize()
-		m.helm = h
-		m.helm.Initialize()
-	*/
 	m.router = mux.NewRouter().StrictSlash(true)
 
 	resources := []Resource{
@@ -53,6 +48,10 @@ func (m *XappManager) Initialize(h Helmer) {
 		{"GET", "/ric/v1/subscriptions/{id}", m.getSubscription},
 		{"DELETE", "/ric/v1/subscriptions/{id}", m.deleteSubscription},
 		{"PUT", "/ric/v1/subscriptions/{id}", m.updateSubscription},
+
+		{"GET", "/ric/v1/config", m.getConfig},
+		{"POST", "/ric/v1/config", m.createConfig},
+		{"DELETE", "/ric/v1/config", m.deleteConfig},
 	}
 
 	for _, resource := range resources {
@@ -158,15 +157,15 @@ func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var xapp Xapp
-	if err := json.NewDecoder(r.Body).Decode(&xapp); err != nil {
+	var cm ConfigMetadata
+	if err := json.NewDecoder(r.Body).Decode(&cm); err != nil {
 		mdclog(MdclogErr, "Invalid xapp data in request body - url="+r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "Invalid xapp data!")
 		return
 	}
 	defer r.Body.Close()
 
-	xapp, err := m.helm.Install(xapp.Name)
+	xapp, err := m.helm.Install(cm)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -262,6 +261,36 @@ func (m *XappManager) notifyClients() {
 	m.sd.notifyClients(xapps, "updated")
 }
 
+func (m *XappManager) getConfig(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, UploadConfig())
+}
+
+func (m *XappManager) createConfig(w http.ResponseWriter, r *http.Request) {
+	var c XAppConfig
+	if parseConfig(w, r, &c) != nil {
+		return
+	}
+
+	if err := CreateConfigMap(c); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusCreated, nil)
+}
+
+func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
+	var c XAppConfig
+	if parseConfig(w, r, &c) != nil {
+		return
+	}
+
+	if _, err := DeleteConfigMap(c); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusNotFound, nil)
+}
+
 // Helper functions
 func respondWithError(w http.ResponseWriter, code int, message string) {
 	respondWithJSON(w, code, map[string]string{"error": message})
@@ -283,4 +312,15 @@ func getResourceId(r *http.Request, w http.ResponseWriter, pattern string) (id s
 		return
 	}
 	return
+}
+
+func parseConfig(w http.ResponseWriter, r *http.Request, req *XAppConfig) error {
+	if r.Body == nil || json.NewDecoder(r.Body).Decode(&req) != nil {
+		mdclog(MdclogErr, "Invalid request payload - url="+r.URL.RequestURI())
+		respondWithError(w, http.StatusMethodNotAllowed, "Invalid request payload")
+		return errors.New("Invalid payload")
+	}
+	defer r.Body.Close()
+
+	return nil
 }

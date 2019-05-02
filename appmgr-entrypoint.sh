@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #   Copyright (c) 2019 AT&T Intellectual Property.
 #   Copyright (c) 2019 Nokia.
 #
@@ -13,27 +15,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-"local":
-  "host": ":8080"
-"helm":
-  "host": "192.168.0.12:31807"
-  "repo": "http://192.168.0.6/charts"
-  "repo-name": "helm-repo"
-  "secrets":
-    "username": "admin"
-    "password": "ric"
-  "helm-username-file": "./helm_repo_username"
-  "helm-password-file": "./helm_repo_password"
-  "retry": 1
-"xapp":
-  "namespace": "ricxapp"
-  "tarDir": "/tmp"
-  "schema": "descriptors/schema.json"
-  "config": "config/config-file.json"
-  "tmpConfig": "/tmp/config-file.json"
-"db":
-  "sessionNamespace": "XMSession"
-  "host": ":6379"
-  "prot": "tcp"
-  "maxIdle": 80
-  "maxActive": 12000
+cp /opt/ric/config/appmgr.yaml /opt/xAppManager/config-file.yaml
+
+# Copy all certificates from mounted folder to root system
+cp /opt/ric/certificates/* /etc/ssl/certs
+
+# Start services, etc.
+/opt/xAppManager/appmgr -f /opt/xAppManager/config-file.yaml
