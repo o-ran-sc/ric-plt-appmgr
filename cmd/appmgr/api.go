@@ -30,7 +30,11 @@ import (
 
 // API functions
 
-func (m *XappManager) Initialize(h Helmer) {
+func (m *XappManager) Initialize(h Helmer, cm ConfigMapper) {
+	m.cm = cm
+	m.helm = h
+	m.helm.SetCM(cm)
+
 	m.router = mux.NewRouter().StrictSlash(true)
 
 	resources := []Resource{
@@ -51,6 +55,7 @@ func (m *XappManager) Initialize(h Helmer) {
 
 		{"GET", "/ric/v1/config", m.getConfig},
 		{"POST", "/ric/v1/config", m.createConfig},
+		{"PUT", "/ric/v1/config", m.updateConfig},
 		{"DELETE", "/ric/v1/config", m.deleteConfig},
 	}
 
@@ -67,7 +72,6 @@ func (m *XappManager) finalize(h Helmer) {
 	m.sd = SubscriptionDispatcher{}
 	m.sd.Initialize()
 
-	m.helm = h
 	m.helm.Initialize()
 
 	m.notifyClients()
@@ -157,7 +161,7 @@ func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var cm ConfigMetadata
+	var cm XappDeploy
 	if err := json.NewDecoder(r.Body).Decode(&cm); err != nil {
 		mdclog(MdclogErr, "Invalid xapp data in request body - url="+r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "Invalid xapp data!")
@@ -262,7 +266,8 @@ func (m *XappManager) notifyClients() {
 }
 
 func (m *XappManager) getConfig(w http.ResponseWriter, r *http.Request) {
-	respondWithJSON(w, http.StatusOK, UploadConfig())
+	cfg := m.cm.UploadConfig()
+	respondWithJSON(w, http.StatusOK, cfg)
 }
 
 func (m *XappManager) createConfig(w http.ResponseWriter, r *http.Request) {
@@ -271,11 +276,32 @@ func (m *XappManager) createConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := CreateConfigMap(c); err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	if errList, err := m.cm.CreateConfigMap(c); err != nil {
+		if err.Error() != "Validation failed!" {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			respondWithJSON(w, http.StatusUnprocessableEntity, errList)
+		}
 		return
 	}
 	respondWithJSON(w, http.StatusCreated, nil)
+}
+
+func (m *XappManager) updateConfig(w http.ResponseWriter, r *http.Request) {
+	var c XAppConfig
+	if parseConfig(w, r, &c) != nil {
+		return
+	}
+
+	if errList, err := m.cm.UpdateConfigMap(c); err != nil {
+		if err.Error() != "Validation failed!" {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			respondWithJSON(w, http.StatusUnprocessableEntity, errList)
+		}
+		return
+	}
+	respondWithJSON(w, http.StatusOK, nil)
 }
 
 func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
@@ -284,7 +310,7 @@ func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := DeleteConfigMap(c); err != nil {
+	if _, err := m.cm.DeleteConfigMap(c); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
