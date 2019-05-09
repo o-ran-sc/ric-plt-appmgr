@@ -63,16 +63,12 @@ func Exec(args string) (out []byte, err error) {
 	return stdout.Bytes(), errors.New(stderr.String())
 }
 
-var HelmExec = func(args string) (out []byte, err error) {
+func HelmExec(args string) (out []byte, err error) {
 	return Exec(strings.Join([]string{"helm", args}, " "))
 }
 
-var KubectlExec = func(args string) (out []byte, err error) {
+func KubectlExec(args string) (out []byte, err error) {
 	return Exec(strings.Join([]string{"kubectl", args}, " "))
-}
-
-func (h *Helm) SetCM(cm ConfigMapper) {
-	h.cm = cm
 }
 
 func (h *Helm) Initialize() {
@@ -107,6 +103,7 @@ func (h *Helm) Run(args string) (out []byte, err error) {
 
 // API functions
 func (h *Helm) Init() (out []byte, err error) {
+
 	// Add Tiller address as environment variable
 	if err := addTillerEnv(); err != nil {
 		return out, err
@@ -116,6 +113,7 @@ func (h *Helm) Init() (out []byte, err error) {
 }
 
 func (h *Helm) AddRepo() (out []byte, err error) {
+
 	// Get helm repo user name and password from files mounted by secret object
 	credFile, err := ioutil.ReadFile(viper.GetString("helm.helm-username-file"))
 	if err != nil {
@@ -142,40 +140,30 @@ func (h *Helm) AddRepo() (out []byte, err error) {
 	return HelmExec(strings.Join([]string{"repo add ", rname, " ", repo, username, pwd}, ""))
 }
 
-func (h *Helm) Install(m XappDeploy) (xapp Xapp, err error) {
+func (h *Helm) Install(m ConfigMetadata) (xapp Xapp, err error) {
 	out, err := h.Run(strings.Join([]string{"repo update "}, ""))
 	if err != nil {
 		return
 	}
 
-	var cm interface{}
-	if err = h.cm.ReadConfigMap(m.Name, m.Namespace, &cm); err != nil {
-		out, err = h.Run(getInstallArgs(m, false))
-		if err != nil {
-			return
-		}
-		return h.ParseStatus(m.Name, string(out))
-	}
+	m.Namespace = getNamespace(m.Namespace)
+	cm, cmErr := PurgeConfigMap(m)
 
-	// ConfigMap exists, try to override
-	out, err = h.Run(getInstallArgs(m, true))
-	if err == nil {
-		return h.ParseStatus(m.Name, string(out))
-	}
-
-	cm, cmErr := h.cm.PurgeConfigMap(m)
-	out, err = h.Run(getInstallArgs(m, false))
+	ns := " --namespace=" + m.Namespace
+	rname := viper.GetString("helm.repo-name")
+	out, err = h.Run(strings.Join([]string{"install ", rname, "/", m.Name, " --name ", m.Name, ns}, ""))
 	if err != nil {
 		return
 	}
 
 	if cmErr == nil {
-		cmErr = h.cm.RestoreConfigMap(m, cm)
+		cmErr = RestoreConfigMap(m, cm)
 	}
 	return h.ParseStatus(m.Name, string(out))
 }
 
 func (h *Helm) Status(name string) (xapp Xapp, err error) {
+
 	out, err := h.Run(strings.Join([]string{"status ", name}, ""))
 	if err != nil {
 		mdclog(MdclogErr, formatLog("Getting xapps status", "", err.Error()))
@@ -196,6 +184,7 @@ func (h *Helm) StatusAll() (xapps []Xapp, err error) {
 }
 
 func (h *Helm) List() (names []string, err error) {
+
 	ns := getNamespace("")
 	out, err := h.Run(strings.Join([]string{"list --all --output yaml --namespace=", ns}, ""))
 	if err != nil {
@@ -230,6 +219,7 @@ func (h *Helm) Fetch(name, tarDir string) error {
 
 // Helper functions
 func (h *Helm) GetVersion(name string) (version string) {
+
 	ns := getNamespace("")
 	out, err := h.Run(strings.Join([]string{"list --output yaml --namespace=", ns, " ", name}, ""))
 	if err != nil {
@@ -293,7 +283,7 @@ func (h *Helm) FillInstanceData(name string, out string, xapp *Xapp, msgs Messag
 		return
 	}
 
-	re := regexp.MustCompile(name + "-(\\w+-\\w+).*")
+	re := regexp.MustCompile(name + "-(\\d+).*")
 	resources := re.FindAllStringSubmatch(string(result[0]), -1)
 	if resources != nil {
 		for _, v := range resources {
@@ -310,11 +300,21 @@ func (h *Helm) FillInstanceData(name string, out string, xapp *Xapp, msgs Messag
 }
 
 func (h *Helm) ParseStatus(name string, out string) (xapp Xapp, err error) {
+
 	xapp.Name = name
 	xapp.Version = h.GetVersion(name)
 	xapp.Status = h.GetState(out)
 
-	h.FillInstanceData(name, out, &xapp, h.cm.GetMessages(name))
+	types, err := GetMessages(name)
+	if err != nil {
+		// xAPP can still be deployed if the msg_type file is missing.
+		mdclog(MdclogWarn, formatLog("GetMessages Failed....", "", err.Error()))
+
+		//Set err back to nil, so it does not cause issues in called functions.
+		err = nil
+	}
+
+	h.FillInstanceData(name, out, &xapp, types)
 
 	return
 }
@@ -333,6 +333,7 @@ func (h *Helm) parseAllStatus(names []string) (xapps []Xapp, err error) {
 }
 
 func addTillerEnv() (err error) {
+
 	service := viper.GetString("helm.tiller-service")
 	namespace := viper.GetString("helm.tiller-namespace")
 	port := viper.GetString("helm.tiller-port")
@@ -354,30 +355,6 @@ func getNamespace(namespace string) string {
 		ns = "ricxapp"
 	}
 	return ns
-}
-
-func getInstallArgs(x XappDeploy, cmOverride bool) (args string) {
-	x.Namespace = getNamespace(x.Namespace)
-	args = args + " --namespace=" + x.Namespace
-
-	if x.ImageRepo != "" {
-		args = args + " --set image.repository=" + x.ImageRepo
-	}
-
-	if x.ServiceName != "" {
-		args = args + " --set service.name=" + x.ServiceName
-	}
-
-	if x.Hostname != "" {
-		args = args + " --set hostname=" + x.Hostname
-	}
-
-	if cmOverride == true {
-		args = args + " --set appconfig.override=true"
-	}
-
-	rname := viper.GetString("helm.repo-name")
-	return fmt.Sprintf("install %s/%s --name=%s %s", rname, x.Name, x.Name, args)
 }
 
 func formatLog(text string, args string, err string) string {

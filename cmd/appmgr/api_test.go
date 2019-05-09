@@ -41,9 +41,6 @@ var helmError error
 type MockedHelmer struct {
 }
 
-func (h *MockedHelmer) SetCM(cm ConfigMapper) {
-}
-
 func (sd *MockedHelmer) Initialize() {
 }
 
@@ -59,7 +56,7 @@ func (h *MockedHelmer) List() (names []string, err error) {
 	return names, helmError
 }
 
-func (h *MockedHelmer) Install(m XappDeploy) (Xapp, error) {
+func (h *MockedHelmer) Install(m ConfigMetadata) (Xapp, error) {
 	return xapp, helmError
 }
 
@@ -74,10 +71,9 @@ func TestMain(m *testing.M) {
 	xapp = Xapp{}
 	xapps = []Xapp{}
 
-	cm := MockedConfigMapper{}
 	h := MockedHelmer{}
 	x = XappManager{}
-	x.Initialize(&h, &cm)
+	x.Initialize(&h)
 
 	// Just run on the background (for coverage)
 	go x.Run()
@@ -155,36 +151,6 @@ func TestDeleteAppRemovesGivenXapp(t *testing.T) {
 
 	req, _ = http.NewRequest("GET", "/ric/v1/xapps/"+xapp.Name, nil)
 	response = executeRequest(req)
-	checkResponseCode(t, http.StatusNotFound, response.Code)
-}
-
-func TestGetConfigReturnsEmpty(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/ric/v1/config", nil)
-	response := executeRequest(req)
-
-	checkResponseCode(t, http.StatusOK, response.Code)
-}
-
-func TestCreateConfigFailsWithMethodNotAllowed(t *testing.T) {
-	req, _ := http.NewRequest("POST", "/ric/v1/config", nil)
-	response := executeRequest(req)
-
-	checkResponseCode(t, http.StatusMethodNotAllowed, response.Code)
-}
-
-func TestCreateConfigOk(t *testing.T) {
-	payload := []byte(`{"name":"dummy-xapp"}`)
-	req, _ := http.NewRequest("POST", "/ric/v1/config", bytes.NewBuffer(payload))
-	response := executeRequest(req)
-
-	checkResponseCode(t, http.StatusCreated, response.Code)
-}
-
-func TestDeleteConfigOk(t *testing.T) {
-	payload := []byte(`{"name":"dummy-xapp"}`)
-	req, _ := http.NewRequest("DELETE", "/ric/v1/config", bytes.NewBuffer(payload))
-	response := executeRequest(req)
-
 	checkResponseCode(t, http.StatusNotFound, response.Code)
 }
 
@@ -292,15 +258,13 @@ func generateXapp(name, status, ver, iname, istatus, ip, port string) (x Xapp) {
 	x.Status = status
 	x.Version = ver
 	p, _ := strconv.Atoi(port)
-	var msgs MessageTypes
-
 	instance := XappInstance{
 		Name:       iname,
 		Status:     istatus,
 		Ip:         ip,
 		Port:       p,
-		TxMessages: msgs.TxMessages,
-		RxMessages: msgs.RxMessages,
+		TxMessages: []string{"RIC_E2_TERMINATION_HC_REQUEST", "RIC_E2_MANAGER_HC_REQUEST"},
+		RxMessages: []string{"RIC_E2_TERMINATION_HC_RESPONSE", "RIC_E2_MANAGER_HC_RESPONSE"},
 	}
 	x.Instances = append(x.Instances, instance)
 

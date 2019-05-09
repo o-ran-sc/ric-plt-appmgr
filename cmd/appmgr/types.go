@@ -38,10 +38,12 @@ type Resource struct {
 }
 
 type Xapp struct {
-	Name      string         `json:"name"`
-	Status    string         `json:"status"`
-	Version   string         `json:"version"`
-	Instances []XappInstance `json:"instances"`
+	Name       string         `json:"name"`
+	ConfigName string         `json:"configName, omitempty"`
+	Namespace  string         `json:"namespace, omitempty"`
+	Status     string         `json:"status"`
+	Version    string         `json:"version"`
+	Instances  []XappInstance `json:"instances"`
 }
 
 type XappInstance struct {
@@ -53,40 +55,17 @@ type XappInstance struct {
 	RxMessages []string `json:"rxMessages"`
 }
 
-type XappDeploy struct {
-	Name        string `json:"name"`
-	ConfigName  string `json:"configName, omitempty"`
-	Namespace   string `json:"namespace, omitempty"`
-	ServiceName string `json:"serviceName, omitempty"`
-	ImageRepo   string `json:"imageRepo, omitempty"`
-	Hostname    string `json:"hostname, omitempty"`
-}
-
 type XappManager struct {
 	router *mux.Router
 	helm   Helmer
-	cm     ConfigMapper
 	sd     SubscriptionDispatcher
 	opts   CmdOptions
 	ready  bool
 }
 
-type ConfigMapper interface {
-	UploadConfig() (cfg []XAppConfig)
-	CreateConfigMap(r XAppConfig) (errList []CMError, err error)
-	UpdateConfigMap(r XAppConfig) (errList []CMError, err error)
-	DeleteConfigMap(r XAppConfig) (cm interface{}, err error)
-	PurgeConfigMap(m XappDeploy) (cm interface{}, err error)
-	RestoreConfigMap(m XappDeploy, cm interface{}) (err error)
-	ReadConfigMap(name string, ns string, c *interface{}) (err error)
-	ApplyConfigMap(r XAppConfig, action string) (err error)
-	GetMessages(name string) (msgs MessageTypes)
-}
-
 type Helmer interface {
-	SetCM(ConfigMapper)
 	Initialize()
-	Install(m XappDeploy) (xapp Xapp, err error)
+	Install(m ConfigMetadata) (xapp Xapp, err error)
 	Status(name string) (xapp Xapp, err error)
 	StatusAll() (xapps []Xapp, err error)
 	List() (xapps []string, err error)
@@ -97,7 +76,6 @@ type Helm struct {
 	host      string
 	chartPath string
 	initDone  bool
-	cm        ConfigMapper
 }
 
 type SubscriptionReq struct {

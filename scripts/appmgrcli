@@ -125,9 +125,6 @@ case $1 in
   (health|heal)
     cmd=health
     ;;
-  (config|upload)
-    cmd=config
-    ;;
   (help)
     usage
     exit 0
@@ -170,7 +167,6 @@ rest() {
   if [ "x$3" != "x" ]; then
     data="--data $3"
   fi
-
   if curl --silent --show-error --connect-timeout 20 --header "Content-Type: application/json" -X $1 -o $resultfile "http://${host}:${port}$2" $data 2> $errfile ;then
     status=0
   else
@@ -192,7 +188,6 @@ base=/ric/v1
 base_xapps=$base/xapps
 base_health=$base/health
 base_subs=$base/subscriptions
-base_config=$base/config
 
 do_deploy() {
   if [ "x$1" != "x" ]; then
@@ -338,40 +333,6 @@ do_subscriptions() {
   esac
 }
 
-do_config() {
-  local urlpath
-  urlpath=$base_config
-  case $1 in
-    (get|list)
-      if [ "x$2" != "x" ]; then
-        urlpath="$urlpath/$2"
-      fi
-      if rest GET $urlpath; then
-        json_reformat < $resultfile
-      else
-        status=1
-      fi
-    ;;
-    (add|update)
-      if rest POST $urlpath "@$2" ; then
-        cat $resultfile
-      else
-        status=1
-    fi
-    ;;
-    (del|delete|remove|rem)
-      if rest DELETE $urlpath "@$2" ; then
-        cat $resultfile
-      else
-        status=1
-    fi
-    ;;
-    (*)
-      echo "$myname: unrecognized config subcommand $1"
-      status=1
-  esac
-}
-
 case $cmd in
   (deploy)
     do_deploy "$2"
@@ -384,9 +345,6 @@ case $cmd in
     ;;
   (subscriptions)
     do_subscriptions "$2" "$3" "$4" "$5" "$6" "$7"
-    ;;
-  (config)
-    do_config "$2" "$3"
     ;;
   (health)
     if rest GET $base_health ; then

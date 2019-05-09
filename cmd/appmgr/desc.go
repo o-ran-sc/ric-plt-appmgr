@@ -58,13 +58,8 @@ type CMMetadata struct {
 	Namespace string `json:"namespace"`
 }
 
-type CMError struct {
-	Field       string `json:"field"`
-	Description string `json:"description"`
-}
-
-func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
-	for _, name := range cm.GetNamesFromHelmRepo() {
+func UploadConfig() (cfg []XAppConfig) {
+	for _, name := range GetNamesFromHelmRepo() {
 		if name == "appmgr" {
 			continue
 		}
@@ -73,12 +68,12 @@ func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
 			Metadata: ConfigMetadata{Name: name, Namespace: "ricxapp", ConfigName: name + "-appconfig"},
 		}
 
-		err := cm.ReadSchema(name, &c)
+		err := ReadSchema(name, &c)
 		if err != nil {
 			continue
 		}
 
-		err = cm.ReadConfigMap(c.Metadata.ConfigName, "ricxapp", &c.Configuration)
+		err = ReadConfigMap(name, "ricxapp", &c.Configuration)
 		if err != nil {
 			log.Println("No active configMap found, using default!")
 		}
@@ -88,18 +83,18 @@ func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
 	return
 }
 
-func (cm *ConfigMap) ReadSchema(name string, c *XAppConfig) (err error) {
-	if err = cm.FetchChart(name); err != nil {
+func ReadSchema(name string, c *XAppConfig) (err error) {
+	if err = FetchChart(name); err != nil {
 		return
 	}
 
 	tarDir := viper.GetString("xapp.tarDir")
-	err = cm.ReadFile(path.Join(tarDir, name, viper.GetString("xapp.schema")), &c.Descriptor)
+	err = ReadFile(path.Join(tarDir, name, viper.GetString("xapp.schema")), &c.Descriptor)
 	if err != nil {
 		return
 	}
 
-	err = cm.ReadFile(path.Join(tarDir, name, viper.GetString("xapp.config")), &c.Configuration)
+	err = ReadFile(path.Join(tarDir, name, viper.GetString("xapp.config")), &c.Configuration)
 	if err != nil {
 		return
 	}
@@ -111,8 +106,8 @@ func (cm *ConfigMap) ReadSchema(name string, c *XAppConfig) (err error) {
 	return
 }
 
-func (cm *ConfigMap) ReadConfigMap(ConfigName string, ns string, c *interface{}) (err error) {
-	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, ConfigName)
+func ReadConfigMap(name string, ns string, c *interface{}) (err error) {
+	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s-appconfig", ns, name)
 	configMapJson, err := KubectlExec(args)
 	if err != nil {
 		return
@@ -126,15 +121,15 @@ func (cm *ConfigMap) ReadConfigMap(ConfigName string, ns string, c *interface{})
 	return
 }
 
-func (cm *ConfigMap) ApplyConfigMap(r XAppConfig, action string) (err error) {
-	c := ConfigMap{
+func ApplyConfigMap(r XAppConfig) (err error) {
+	cm := ConfigMap{
 		Kind:       "ConfigMap",
 		ApiVersion: "v1",
 		Metadata:   CMMetadata{Name: r.Metadata.Name, Namespace: r.Metadata.Namespace},
 		Data:       r.Configuration,
 	}
 
-	cmJson, err := json.Marshal(c)
+	cmJson, err := json.Marshal(cm)
 	if err != nil {
 		log.Println("Config marshalling failed: ", err)
 		return
@@ -147,37 +142,26 @@ func (cm *ConfigMap) ApplyConfigMap(r XAppConfig, action string) (err error) {
 		return
 	}
 
-	cmd := " create configmap -n %s %s --from-file=%s -o json --dry-run | kubectl %s -f -"
-	args := fmt.Sprintf(cmd, r.Metadata.Namespace, r.Metadata.ConfigName, cmFile, action)
+	cmd := " create configmap -n %s %s --from-file=%s -o json --dry-run | kubectl apply -f -"
+	args := fmt.Sprintf(cmd, r.Metadata.Namespace, r.Metadata.ConfigName, cmFile)
 	_, err = KubectlExec(args)
 	if err != nil {
 		return
 	}
-	log.Println("Configmap changes done!")
+	log.Println("Configmap changes created!")
 
 	return
 }
 
-func (cm *ConfigMap) CreateConfigMap(r XAppConfig) (errList []CMError, err error) {
-	if errList, err = cm.Validate(r); err != nil {
+func CreateConfigMap(r XAppConfig) (err error) {
+	if err = Validate(r); err != nil {
 		return
 	}
-	err = cm.ApplyConfigMap(r, "create")
-	return
+	return ApplyConfigMap(r)
 }
 
-func (cm *ConfigMap) UpdateConfigMap(r XAppConfig) (errList []CMError, err error) {
-	if errList, err = cm.Validate(r); err != nil {
-		return
-	}
-
-	// Re-create the configmap with the new parameters
-	err = cm.ApplyConfigMap(r, "apply")
-	return
-}
-
-func (cm *ConfigMap) DeleteConfigMap(r XAppConfig) (c interface{}, err error) {
-	err = cm.ReadConfigMap(r.Metadata.ConfigName, r.Metadata.Namespace, &c)
+func DeleteConfigMap(r XAppConfig) (cm interface{}, err error) {
+	err = ReadConfigMap(r.Metadata.Name, r.Metadata.Namespace, &cm)
 	if err == nil {
 		args := fmt.Sprintf(" delete configmap --namespace=%s %s", r.Metadata.Namespace, r.Metadata.ConfigName)
 		_, err = KubectlExec(args)
@@ -185,26 +169,23 @@ func (cm *ConfigMap) DeleteConfigMap(r XAppConfig) (c interface{}, err error) {
 	return
 }
 
-func (cm *ConfigMap) PurgeConfigMap(m XappDeploy) (c interface{}, err error) {
+func PurgeConfigMap(m ConfigMetadata) (cm interface{}, err error) {
 	if m.ConfigName == "" {
 		m.ConfigName = m.Name + "-appconfig"
 	}
-	md := ConfigMetadata{Name: m.Name, Namespace: m.Namespace, ConfigName: m.ConfigName}
-
-	return cm.DeleteConfigMap(XAppConfig{Metadata: md})
+	return DeleteConfigMap(XAppConfig{Metadata: m})
 }
 
-func (cm *ConfigMap) RestoreConfigMap(m XappDeploy, c interface{}) (err error) {
+func RestoreConfigMap(m ConfigMetadata, cm interface{}) (err error) {
 	if m.ConfigName == "" {
 		m.ConfigName = m.Name + "-appconfig"
 	}
-	md := ConfigMetadata{Name: m.Name, Namespace: m.Namespace, ConfigName: m.ConfigName}
 	time.Sleep(time.Duration(10 * time.Second))
 
-	return cm.ApplyConfigMap(XAppConfig{Metadata: md, Configuration: c}, "create")
+	return ApplyConfigMap(XAppConfig{Metadata: m, Configuration: cm})
 }
 
-func (cm *ConfigMap) GetNamesFromHelmRepo() (names []string) {
+func GetNamesFromHelmRepo() (names []string) {
 	rname := viper.GetString("helm.repo-name")
 
 	cmdArgs := strings.Join([]string{"search ", rname}, "")
@@ -225,37 +206,37 @@ func (cm *ConfigMap) GetNamesFromHelmRepo() (names []string) {
 	return names
 }
 
-func (cm *ConfigMap) Validate(req XAppConfig) (errList []CMError, err error) {
+func Validate(req XAppConfig) (err error) {
 	c := XAppConfig{}
-	err = cm.ReadSchema(req.Metadata.Name, &c)
+	err = ReadSchema(req.Metadata.Name, &c)
 	if err != nil {
 		log.Printf("No schema file found for '%s', aborting ...", req.Metadata.Name)
-		return
+		return err
 	}
-	return cm.doValidate(c.Descriptor, req.Configuration)
-}
 
-func (cm *ConfigMap) doValidate(schema, cfg interface{}) (errList []CMError, err error) {
-	schemaLoader := gojsonschema.NewGoLoader(schema)
-	documentLoader := gojsonschema.NewGoLoader(cfg)
+	schemaLoader := gojsonschema.NewGoLoader(c.Descriptor)
+	documentLoader := gojsonschema.NewGoLoader(req.Configuration)
 
+	log.Println("Starting validation ...")
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		log.Println("Validation failed: ", err)
 		return
 	}
 
+	log.Println("validation done ...", err, result.Valid())
 	if result.Valid() == false {
 		log.Println("The document is not valid, Errors: ", result.Errors())
-		for _, desc := range result.Errors() {
-			errList = append(errList, CMError{Field: desc.Field(), Description: desc.Description()})
+		s := make([]string, 3)
+		for i, desc := range result.Errors() {
+			s = append(s, fmt.Sprintf(" (%d): %s.\n", i, desc.String()))
 		}
-		return errList, errors.New("Validation failed!")
+		return errors.New(strings.Join(s, " "))
 	}
 	return
 }
 
-func (cm *ConfigMap) ReadFile(name string, data interface{}) (err error) {
+func ReadFile(name string, data interface{}) (err error) {
 	f, err := ioutil.ReadFile(name)
 	if err != nil {
 		log.Printf("Reading '%s' file failed: %v", name, err)
@@ -271,7 +252,7 @@ func (cm *ConfigMap) ReadFile(name string, data interface{}) (err error) {
 	return
 }
 
-func (cm *ConfigMap) FetchChart(name string) (err error) {
+func FetchChart(name string) (err error) {
 	tarDir := viper.GetString("xapp.tarDir")
 	repo := viper.GetString("helm.repo-name")
 	fetchArgs := fmt.Sprintf("--untar --untardir %s %s/%s", tarDir, repo, name)
@@ -280,7 +261,7 @@ func (cm *ConfigMap) FetchChart(name string) (err error) {
 	return
 }
 
-func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
+func GetMessages(name string) (msgs MessageTypes, err error) {
 	log.Println("Fetching tx/rx messages for: ", name)
 	return
 }

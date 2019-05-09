@@ -25,7 +25,7 @@ func main() {
 	loadConfig()
 
 	m := XappManager{}
-	m.Initialize(&Helm{}, &ConfigMap{})
+	m.Initialize(&Helm{})
 
 	m.Run()
 }

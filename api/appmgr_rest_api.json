@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "description": "This is a draft API for RIC appmgr",
-    "version": "0.1.2",
+    "version": "0.0.11",
     "title": "RIC appmgr",
     "license": {
       "name": "Apache 2.0",
@@ -19,9 +19,6 @@
     "/health": {
       "get": {
         "summary": "Health check of xApp Manager",
-        "tags": [
-          "health"
-        ],
         "operationId": "getHealth",
         "responses": {
           "200": {
@@ -33,9 +30,6 @@
     "/xapps": {
       "post": {
         "summary": "Deploy a xapp",
-        "tags": [
-          "xapp"
-        ],
         "operationId": "deployXapp",
         "consumes": [
           "application/json"
@@ -80,9 +74,6 @@
       },
       "get": {
         "summary": "Returns the status of all xapps",
-        "tags": [
-          "xapp"
-        ],
         "operationId": "getAllXapps",
         "produces": [
           "application/json"
@@ -103,9 +94,6 @@
     "/xapps/{xAppName}": {
       "get": {
         "summary": "Returns the status of a given xapp",
-        "tags": [
-          "xapp"
-        ],
         "operationId": "getXappByName",
         "produces": [
           "application/json"
@@ -139,9 +127,6 @@
       },
       "delete": {
         "summary": "Undeploy an existing xapp",
-        "tags": [
-          "xapp"
-        ],
         "operationId": "undeployXapp",
         "parameters": [
           {
@@ -168,9 +153,6 @@
     "/xapps/{xAppName}/instances/{xAppInstanceName}": {
       "get": {
         "summary": "Returns the status of a given xapp",
-        "tags": [
-          "xapp"
-        ],
         "operationId": "getXappInstanceByName",
         "produces": [
           "application/json"
@@ -210,144 +192,9 @@
         }
       }
     },
-    "/config": {
-      "post": {
-        "summary": "Create xApp config",
-        "tags": [
-          "xapp"
-        ],
-        "operationId": "createXappConfig",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "xAppConfig",
-            "in": "body",
-            "description": "xApp config",
-            "schema": {
-              "$ref": "#/definitions/xAppConfig"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "xApp config successfully created",
-            "schema": {
-              "$ref": "#/definitions/xAppConfig"
-            }
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "422": {
-            "description": "Validation of configuration failed"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        }
-      },
-      "put": {
-        "summary": "Modify xApp config",
-        "tags": [
-          "xapp"
-        ],
-        "operationId": "ModifyXappConfig",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "xAppConfig",
-            "in": "body",
-            "description": "xApp config",
-            "schema": {
-              "$ref": "#/definitions/xAppConfig"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "xApp config successfully modified",
-            "schema": {
-              "$ref": "#/definitions/xAppConfig"
-            }
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "422": {
-            "description": "Validation of configuration failed"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        }
-      },
-      "get": {
-        "summary": "Returns the configuration of all xapps",
-        "tags": [
-          "xapp"
-        ],
-        "operationId": "getAllXappConfig",
-        "produces": [
-          "application/json"
-        ],
-        "responses": {
-          "200": {
-            "description": "successful query of xApp config",
-            "schema": {
-              "$ref": "#/definitions/AllXappConfig"
-            }
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete xApp configuration",
-        "tags": [
-          "xapp"
-        ],
-        "operationId": "deleteXappConfig",
-        "parameters": [
-          {
-            "name": "xAppConfigInfo",
-            "in": "body",
-            "description": "xApp configuration information",
-            "schema": {
-              "$ref": "#/definitions/xAppConfigInfo"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful deletion of xApp"
-          },
-          "400": {
-            "description": "Invalid parameters supplied"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        }
-      }
-    },
     "/subscriptions": {
       "post": {
         "summary": "Subscribe event",
-        "tags": [
-          "xapp",
-          "subscriptions"
-        ],
         "operationId": "addSubscription",
         "consumes": [
           "application/json"
@@ -380,10 +227,6 @@
       },
       "get": {
         "summary": "Returns all subscriptions",
-        "tags": [
-          "xapp",
-          "subscriptions"
-        ],
         "operationId": "getSubscriptions",
         "produces": [
           "application/json"
@@ -401,10 +244,6 @@
     "/subscriptions/{subscriptionId}": {
       "get": {
         "summary": "Returns the information of subscription",
-        "tags": [
-          "xapp",
-          "subscriptions"
-        ],
         "operationId": "getSubscriptionById",
         "produces": [
           "application/json"
@@ -435,10 +274,6 @@
       },
       "put": {
         "summary": "Modify event subscription",
-        "tags": [
-          "xapp",
-          "subscriptions"
-        ],
         "operationId": "modifySubscription",
         "consumes": [
           "application/json"
@@ -478,10 +313,6 @@
       },
       "delete": {
         "summary": "Unsubscribe event",
-        "tags": [
-          "xapp",
-          "subscriptions"
-        ],
         "description": "",
         "operationId": "deleteSubscription",
         "parameters": [
@@ -590,58 +421,6 @@
             "example" : "LoadIndication"
           }
         }
-      }
-    },
-    "xAppConfigInfo": {
-      "type": "object",
-      "required": [
-        "xAppName",
-        "configMapName",
-        "namespace"
-      ],
-      "properties": {
-        "xAppName": {
-          "type":"string",
-          "description":"Name of the xApp",
-          "example": "xapp-dummy"
-        },
-        "configMapName": {
-          "type":"string",
-          "description":"Name of the config map",
-          "example": "xapp-dummy-config-map"
-        },
-        "namespace": {
-          "type":"string",
-          "description":"Name of the namespace",
-          "example": "ricxapp"
-        }
-      }
-    },
-    "xAppConfig": {
-      "type": "object",
-      "required": [
-        "xAppConfigInfo",
-        "configSchema",
-        "configMap"
-      ],
-      "properties": {
-        "xAppConfigInfo": {
-          "$ref": "#/definitions/xAppConfigInfo"
-        },
-        "configSchema": {
-          "type":"object",
-          "description":"Schema of configuration in JSON format"
-        },
-        "configMap": {
-          "type":"object",
-          "description":"Configuration in JSON format"
-        }
-      }
-    },
-    "AllXappConfig": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/xAppConfig"
       }
     },
     "subscriptionRequest": {
