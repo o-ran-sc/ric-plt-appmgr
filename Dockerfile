@@ -16,7 +16,7 @@
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
-FROM ubuntu:16.04 as xapp-base
+FROM ubuntu:16.04 as appmgr-xapp-base
 
 RUN apt-get update -y && \
     apt-get install -y wget
@@ -59,14 +59,14 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # rancodev libs
 #
 RUN mkdir -p /opt/build \
+    && cd /opt/build && git clone https://gerrit.oran-osc.org/r/ric-plt/lib/rmr \
+    && cd rmr/; mkdir build; cd build; cmake ..; make install \
     && cd /opt/build && git clone https://gerrit.oran-osc.org/r/com/log \
     && cd log/ ; ./autogen.sh ; ./configure ; make ; make install \
     && ldconfig
 
-COPY build/build_entrypoint.sh /
 COPY build/user_entrypoint.sh /
 
-RUN chmod +x /build_entrypoint.sh
 RUN chmod +x /user_entrypoint.sh
 
 RUN mkdir -p /ws
@@ -77,12 +77,9 @@ CMD ["/bin/bash"]
 #----------------------------------------------------------
 #
 #----------------------------------------------------------
-FROM xapp-base as appmgr-build
+FROM appmgr-xapp-base as appmgr-build
 
 ARG PACKAGEURL
-ARG PACKAGEREPO
-ARG SSH_PRIVATE_KEY
-ARG NETRC_CONFIG
 ARG HELMVERSION
 
 
@@ -105,13 +102,12 @@ ENV GOPATH="/go"
 # Module prepare (if go.mod/go.sum updated)
 COPY go.mod /go/src/${PACKAGEURL}
 COPY go.sum /go/src/${PACKAGEURL}
-RUN GO111MODULE=on /build_entrypoint.sh go mod download
+RUN GO111MODULE=on go mod download
 
 # build
 COPY . /go/src/${PACKAGEURL}
-RUN /build_entrypoint.sh make -C /go/src/${PACKAGEURL} build
+RUN make -C /go/src/${PACKAGEURL} build
 
-ENTRYPOINT ["/build_entrypoint.sh"]
 CMD ["/bin/bash"]
 
 
@@ -168,7 +164,7 @@ RUN ldconfig
 RUN mkdir -p /opt/xAppManager \
     && chmod -R 755 /opt/xAppManager
 
-COPY --from=appmgr-build /go/src/${PACKAGEURL}/build/cache/cmd/appmgr /opt/xAppManager/appmgr
+COPY --from=appmgr-build /go/src/${PACKAGEURL}/cache/go/cmd/appmgr /opt/xAppManager/appmgr
 #COPY --from=appmgr-build /go/src/${PACKAGEURL}/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
 
 

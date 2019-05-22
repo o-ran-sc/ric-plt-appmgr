@@ -19,40 +19,52 @@
 ifndef MAKE_DOCKER_TARGETS
 MAKE_DOCKER_TARGETS:=1
 
-.PHONY: docker-build docker-clean
+.PHONY: docker-build docker-clean docker-stop FORCE
+
+FORCE:
 
 
 docker-name_%:
 	@echo $($*_DCKR_FULLNAME)
 
+
 docker-build_%:
-	@(\
-		test -z "$${SSH_PRIVATE_KEY}" && SSH_PRIVATE_KEY=$$(cat $${HOME}/.ssh/id_rsa);\
-		docker build --target $* $($*_DCKR_B_OPTS) --build-arg SSH_PRIVATE_KEY="$${SSH_PRIVATE_KEY}" -t $($*_DCKR_FULLNAME) -f $($*_DCKR_FILE) . ;\
-	)
+	docker build --target $* $($*_DCKR_B_OPTS) -t $($*_DCKR_FULLNAME) -f $($*_DCKR_FILE) .
 
-docker-irun_%:
-	docker run $($*_DCKR_R_OPTS) $($*_DCKR_FULLNAME) /bin/bash
+.docker-services-drun_%:
+	docker network create --driver bridge $($*_DCKR_FULLNAME)-running_network
+	docker run $($*_DCKR_R_OPTS) -d --name $($*_DCKR_FULLNAME)-running_redis --network $($*_DCKR_FULLNAME)-running_network redis
 
-docker-irun-mounted_%:
-	docker run $($*_DCKR_R_OPTS) -v $(shell pwd):/ws/go/src/${PACKAGEURL} --workdir "/ws/go/src/${PACKAGEURL}" $($*_DCKR_FULLNAME) /bin/bash
+docker-irun_%: .docker-services-drun_%
+	docker run $($*_DCKR_R_OPTS) --name $($*_DCKR_FULLNAME)-running_xapp --network $($*_DCKR_FULLNAME)-running_network -e DBAAS_SERVICE_HOST=$($*_DCKR_FULLNAME)-running_redis $($*_DCKR_FULLNAME) /bin/bash
 
-docker-run_%:
-	docker run $($*_DCKR_R_OPTS) $($*_DCKR_FULLNAME)
+docker-irun-mounted_%: .docker-services-drun_%
+	docker run $($*_DCKR_R_OPTS) -v $(shell pwd):/ws/go/src/${PACKAGEURL} --workdir "/ws/go/src/${PACKAGEURL}" --name $($*_DCKR_FULLNAME)-running_xapp --network $($*_DCKR_FULLNAME)-running_network -e DBAAS_SERVICE_HOST=$($*_DCKR_FULLNAME)-running_redis $($*_DCKR_FULLNAME) /bin/bash
 
-docker-run-redished_%:
-	@( \
-		RETVAL=0;\
-		docker network create --driver bridge $($*_DCKR_FULLNAME)-run_network;\
-		docker run $($*_DCKR_R_OPTS) -d --name $($*_DCKR_FULLNAME)-run_redis --network $($*_DCKR_FULLNAME)-run_network redis;\
-		docker run $($*_DCKR_R_OPTS) --name $($*_DCKR_FULLNAME)-run_xapp --network $($*_DCKR_FULLNAME)-run_network -e DBAAS_SERVICE_HOST=$($*_DCKR_FULLNAME)-run_redis $($*_DCKR_FULLNAME);\
-		RETVAL=$$?;\
-		docker stop $($*_DCKR_FULLNAME)-run_redis;\
-		docker network rm $($*_DCKR_FULLNAME)-run_network;\
-		exit $${RETVAL};\
-	)
-	
-docker-clean_%:
+docker-run_%: .docker-services-drun_%
+	docker run $($*_DCKR_R_OPTS) --name $($*_DCKR_FULLNAME)-running_xapp --network $($*_DCKR_FULLNAME)-running_network -e DBAAS_SERVICE_HOST=$($*_DCKR_FULLNAME)-running_redis $($*_DCKR_FULLNAME)
+
+docker-stop_%:
+	docker rm -f $($*_DCKR_FULLNAME)-running_xapp &> /dev/null || true
+	docker rm -f $($*_DCKR_FULLNAME)-running_redis &> /dev/null || true
+	docker network rm $($*_DCKR_FULLNAME)-running_network &> /dev/null || true
+
+docker-irun-stop_%: docker-irun_%
+	docker rm -f $($*_DCKR_FULLNAME)-running_xapp &> /dev/null || true
+	docker rm -f $($*_DCKR_FULLNAME)-running_redis &> /dev/null || true
+	docker network rm $($*_DCKR_FULLNAME)-running_network &> /dev/null || true
+
+docker-irun-mounted-stop_%: docker-irun-mounted_%
+	docker rm -f $($*_DCKR_FULLNAME)-running_xapp &> /dev/null || true
+	docker rm -f $($*_DCKR_FULLNAME)-running_redis &> /dev/null || true
+	docker network rm $($*_DCKR_FULLNAME)-running_network &> /dev/null || true
+
+docker-run-stop_%: docker-run_%
+	docker rm -f $($*_DCKR_FULLNAME)-running_xapp &> /dev/null || true
+	docker rm -f $($*_DCKR_FULLNAME)-running_redis &> /dev/null || true
+	docker network rm $($*_DCKR_FULLNAME)-running_network &> /dev/null || true
+
+docker-clean_%: docker-stop_%
 	docker rmi $($*_DCKR_FULLNAME) || true
 
 
@@ -63,6 +75,10 @@ docker-build: $$(DCKR_TARGETS)
 .SECONDEXPANSION:
 docker-clean: DCKR_TARGETS:=
 docker-clean: $$(DCKR_TARGETS)
+
+.SECONDEXPANSION:
+docker-stop: DCKR_TARGETS:=
+docker-stop: $$(DCKR_TARGETS)
 
 endif
 
@@ -98,15 +114,11 @@ $(DCKR_NAME)_DCKR_FULLNAME:=$($(DCKR_NAME)_DCKR_B_PREFIX)$(DCKR_NAME)
 $(DCKR_NAME)_DCKR_B_OPTS:=${DCKR_B_OPTS}
 $(DCKR_NAME)_DCKR_B_OPTS:=$($(DCKR_NAME)_DCKR_B_OPTS) --network=host
 
-ifndef PACKAGEURL
+ifdef PACKAGEURL
 $(DCKR_NAME)_DCKR_B_OPTS:=$($(DCKR_NAME)_DCKR_B_OPTS) --build-arg PACKAGEURL=${PACKAGEURL}
 endif
 
-ifndef PACKAGEREPO
-$(DCKR_NAME)_DCKR_B_OPTS:=$($(DCKR_NAME)_DCKR_B_OPTS) --build-arg PACKAGEREPO=${PACKAGEREPO}
-endif
-
-ifndef BUILD_PREFIX
+ifdef BUILD_PREFIX
 $(DCKR_NAME)_DCKR_B_OPTS:=$($(DCKR_NAME)_DCKR_B_OPTS) --build-arg BUILD_PREFIX=${BUILD_PREFIX}
 endif
 
@@ -125,4 +137,6 @@ $(DCKR_NAME)_DCKR_R_OPTS:=$($(DCKR_NAME)_DCKR_R_OPTS)$(shell test -e ${HOME}/.gi
 docker-build: DCKR_TARGETS+=docker-build_$(DCKR_NAME)
 
 docker-clean: DCKR_TARGETS+=docker-clean_$(DCKR_NAME)
+
+docker-stop: DCKR_TARGETS+=docker-stop_$(DCKR_NAME)
 

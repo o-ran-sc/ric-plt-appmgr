@@ -17,20 +17,29 @@
 #------------------------------------------------------------------------------
 #
 #------------------------------------------------------------------------------
-#ROOT_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-
 ifndef ROOT_DIR
 $(error ROOT_DIR NOT DEFINED)
 endif
-BUILD_DIR?=$(abspath $(ROOT_DIR)/build)
-CACHE_DIR?=$(abspath $(BUILD_DIR)/cache)
-
+ifndef CACHE_DIR
+$(error CACHE_DIR NOT DEFINED)
+endif
 
 #------------------------------------------------------------------------------
 #
-#-------------------------------------------------------------------- ----------
+#------------------------------------------------------------------------------
+
+GO_CACHE_DIR?=$(abspath $(CACHE_DIR)/go)
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
 ifndef MAKE_GO_TARGETS
 MAKE_GO_TARGETS:=1
+
+
+.PHONY: FORCE go-build go-test go-test-fmt go-fmt go-clean
+ 
+FORCE:
 
 
 GOOS=$(shell go env GOOS)
@@ -45,18 +54,15 @@ GOFILES:=$(shell find $(ROOT_DIR) -name '*.go' -not -name '*_test.go')
 GOALLFILES:=$(shell find $(ROOT_DIR) -name '*.go')
 GOMODFILES:=go.mod go.sum
 
-.PHONY: FORCE go-build go-test go-test-fmt go-fmt go-clean
- 
 
-FORCE:
-
-
-$(CACHE_DIR)/%: $(GOFILES) $(GOMODFILES)
+.SECONDEXPANSION:
+$(GO_CACHE_DIR)/%: $(GOFILES) $(GOMODFILES) $$(BUILDDEPS)
 	@echo "Building:\t$*"
 	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOBUILD) -o $@ ./$*
 
 
-$(CACHE_DIR)/%_test: $(GOALLFILES) $(GOMODFILES)
+.SECONDEXPANSION:
+$(GO_CACHE_DIR)/%_test: $(GOALLFILES) $(GOMODFILES) $$(BUILDDEPS) FORCE
 	@echo "Testing:\t$*"
 	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOTEST) -coverprofile $(COVEROUT) -c -o $@ ./$*
 	test -e $@ && (eval $(TESTENV) $@ -test.coverprofile $(COVEROUT) || false) || true
@@ -64,12 +70,12 @@ $(CACHE_DIR)/%_test: $(GOALLFILES) $(GOMODFILES)
 
 
 .SECONDEXPANSION:
-go-build: XAPP_TARGETS:=
-go-build: $$(XAPP_TARGETS)
+go-build: GO_TARGETS:=
+go-build: $$(GO_TARGETS)
 
 .SECONDEXPANSION:
-go-test: XAPP_TARGETS:=
-go-test: go-clean $$(XAPP_TARGETS)
+go-test: GO_TARGETS:=
+go-test: $$(GO_TARGETS)
 
 go-test-fmt: $(GOFILES)
 	@(RESULT="$$(gofmt -l $^)"; test -z "$${RESULT}" || (echo -e "gofmt failed:\n$${RESULT}" && false) )
@@ -77,10 +83,16 @@ go-test-fmt: $(GOFILES)
 go-fmt: $(GOFILES)
 	gofmt -w -s $^
 
-go-clean: XAPP_TARGETS:=
+go-mod-tidy: FORCE
+	GO111MODULE=on go mod tidy
+
+go-mod-download: FORCE
+	GO111MODULE=on go mod download
+
+go-clean: GO_TARGETS:=
 go-clean:
 	@echo "  >  Cleaning build cache"
-	@-rm -rf $(XAPP_TARGETS)* 2> /dev/null
+	@-rm -rf $(GO_TARGETS)* 2> /dev/null
 	go clean 2> /dev/null
 
 
@@ -90,11 +102,15 @@ endif
 #
 #-------------------------------------------------------------------- ----------
 
-$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: COVEROUT:=$(abspath $(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_cover.out)
-$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: COVERHTML:=$(abspath $(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_cover.html)
-$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: TESTENV:=$(XAPP_TESTENV)
+$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME): BUILDDEPS:=$(XAPP_BUILDDEPS)
 
-go-build: XAPP_TARGETS+=$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)
-go-test: XAPP_TARGETS+=$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test
-go-clean: XAPP_TARGETS+=$(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME) $(CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test
+
+$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: BUILDDEPS:=$(XAPP_BUILDDEPS)
+$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: COVEROUT:=$(abspath $(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_cover.out)
+$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: COVERHTML:=$(abspath $(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_cover.html)
+$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test: TESTENV:=$(XAPP_TESTENV)
+
+go-build: GO_TARGETS+=$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)
+go-test: GO_TARGETS+=$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test
+go-clean: GO_TARGETS+=$(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME) $(GO_CACHE_DIR)/$(XAPP_ROOT)/$(XAPP_NAME)_test
 

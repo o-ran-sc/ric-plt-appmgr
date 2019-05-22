@@ -34,6 +34,30 @@ helm-repo/dualco        0.0.1           1.0             Helm Chart for Nokia dua
 helm-repo/reporter      0.0.1           1.0             Helm Chart for Reporting xAPP
 helm-repo/uemgr         0.0.1           1.0             Helm Chart for Nokia uemgr xAPP
 `
+
+var kubectlConfigmapOutput = `
+{
+    "local": {
+        "host": ":8080"
+    },
+    "logger": {
+        "level": 3
+    },
+    "rmr": {
+       "protPort": "tcp:4560",
+       "maxSize": 2072,
+       "numWorkers": 1,
+       "txMessages": ["RIC_X2_LOAD_INFORMATION"],
+       "rxMessages": ["RIC_X2_LOAD_INFORMATION"]
+    },
+    "db": {
+        "namespace": "ricxapp",
+        "host": "dbaas",
+        "port": 6379
+    }
+}
+`
+
 type ConfigSample struct {
 	Level  	int
 	Host 	string
@@ -85,10 +109,18 @@ func (cm *MockedConfigMapper) GetMessages(name string) (msgs MessageTypes) {
 // Test cases
 func TestGetMessages(t *testing.T) {
 	cm := ConfigMap{}
-	expectedMsgs := MessageTypes{}
+	expectedMsgs := MessageTypes{
+		TxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
+		RxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
+	}
 
-	if !reflect.DeepEqual(cm.GetMessages("dummy-xapp"), expectedMsgs) {
-		t.Errorf("TestGetMessages failed!")
+	KubectlExec = func(args string) (out []byte, err error) {
+		return []byte(kubectlConfigmapOutput), nil
+	}
+
+    result := cm.GetMessages("dummy-xapp")
+	if !reflect.DeepEqual(result, expectedMsgs) {
+		t.Errorf("TestGetMessages failed: expected: %v, got: %v", expectedMsgs, result)
 	}
 }
 

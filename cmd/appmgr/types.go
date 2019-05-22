@@ -134,8 +134,8 @@ type SubscriptionDispatcher struct {
 }
 
 type MessageTypes struct {
-	TxMessages []string `yaml:"txMessages"`
-	RxMessages []string `yaml:"rxMessages"`
+	TxMessages []string `json:"txMessages"`
+	RxMessages []string `json:"rxMessages"`
 }
 
 type EventType string
