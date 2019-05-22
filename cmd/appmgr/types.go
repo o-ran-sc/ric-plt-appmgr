@@ -73,6 +73,7 @@ type XappManager struct {
 
 type ConfigMapper interface {
 	UploadConfig() (cfg []XAppConfig)
+	GetConfigMap(m XappDeploy, c *interface{}) (err error)
 	CreateConfigMap(r XAppConfig) (errList []CMError, err error)
 	UpdateConfigMap(r XAppConfig) (errList []CMError, err error)
 	DeleteConfigMap(r XAppConfig) (cm interface{}, err error)
@@ -134,8 +135,8 @@ type SubscriptionDispatcher struct {
 }
 
 type MessageTypes struct {
-	TxMessages []string `yaml:"txMessages"`
-	RxMessages []string `yaml:"rxMessages"`
+	TxMessages []string `json:"txMessages"`
+	RxMessages []string `json:"rxMessages"`
 }
 
 type EventType string

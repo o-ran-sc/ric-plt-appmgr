@@ -24,18 +24,20 @@ test: go-test
 
 #------------------------------------------------------------------------------
 #
+#------------------------------------------------------------------------------
+ROOT_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+CACHE_DIR?=$(abspath $(ROOT_DIR)/cache)
+
+#------------------------------------------------------------------------------
+#
 # Build and test targets
 #
 #------------------------------------------------------------------------------
-ROOT_DIR:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR:=$(abspath $(ROOT_DIR)/build)
-
 
 XAPP_NAME:=appmgr
 XAPP_ROOT:=cmd
 XAPP_TESTENV:="RMR_SEED_RT=config/uta_rtg.rt CFG_FILE=$(ROOT_DIR)helm_chart/uemgr/descriptors/config-file.json"
 include build/make.go.mk 
-
 
 #------------------------------------------------------------------------------
 #
@@ -47,6 +49,9 @@ HELMVERSION:=v2.13.0-rc.1
 DCKR_B_OPTS:=${DCKR_B_OPTS} --build-arg HELMVERSION=${HELMVERSION} 
 
 PACKAGEURL:="gerrit.oran-osc.org/r/ric-plt/appmgr"
+
+DCKR_NAME:=appmgr-xapp-base
+include build/make.docker.mk
 
 DCKR_NAME:=appmgr-test_unit
 include build/make.docker.mk
@@ -61,5 +66,5 @@ DCKR_NAME:=appmgr
 include build/make.docker.mk
 
 
-docker-test: docker-run_appmgr-test_fmt docker-run_appmgr-test_sanity docker-run-redished_appmgr-test_unit
+docker-test: docker-run-stop_appmgr-test_fmt docker-run-stop_appmgr-test_sanity docker-run-stop_appmgr-test_unit
 

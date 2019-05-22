@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"github.com/valyala/fastjson"
 	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"log"
@@ -134,7 +135,7 @@ func (cm *ConfigMap) ApplyConfigMap(r XAppConfig, action string) (err error) {
 		Data:       r.Configuration,
 	}
 
-	cmJson, err := json.Marshal(c)
+	cmJson, err := json.Marshal(c.Data)
 	if err != nil {
 		log.Println("Config marshalling failed: ", err)
 		return
@@ -156,6 +157,13 @@ func (cm *ConfigMap) ApplyConfigMap(r XAppConfig, action string) (err error) {
 	log.Println("Configmap changes done!")
 
 	return
+}
+
+func (cm *ConfigMap) GetConfigMap(m XappDeploy, c *interface{}) (err error) {
+	if m.ConfigName == "" {
+		m.ConfigName = m.Name + "-appconfig"
+	}
+	return cm.ReadConfigMap(m.ConfigName, m.Namespace, c)
 }
 
 func (cm *ConfigMap) CreateConfigMap(r XAppConfig) (errList []CMError, err error) {
@@ -282,5 +290,26 @@ func (cm *ConfigMap) FetchChart(name string) (err error) {
 
 func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 	log.Println("Fetching tx/rx messages for: ", name)
+
+	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n ricxapp %s-appconfig", name)
+	out, err := KubectlExec(args)
+	if err != nil {
+		return
+	}
+
+	var p fastjson.Parser
+	v, err := p.Parse(string(out))
+	if err != nil {
+		log.Printf("fastjson.Parser for '%s' failed: %v", name, err)
+		return
+	}
+
+	for _, m := range v.GetArray("rmr", "txMessages") {
+		msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
+	}
+	for _, m := range v.GetArray("rmr", "rxMessages") {
+		msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+	}
+
 	return
 }

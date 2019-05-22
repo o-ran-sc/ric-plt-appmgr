@@ -149,7 +149,9 @@ func (h *Helm) Install(m XappDeploy) (xapp Xapp, err error) {
 	}
 
 	var cm interface{}
-	if err = h.cm.ReadConfigMap(m.Name, m.Namespace, &cm); err != nil {
+	m.Namespace = getNamespace(m.Namespace)
+
+	if err = h.cm.GetConfigMap(m, &cm); err != nil {
 		out, err = h.Run(getInstallArgs(m, false))
 		if err != nil {
 			return
@@ -357,23 +359,22 @@ func getNamespace(namespace string) string {
 }
 
 func getInstallArgs(x XappDeploy, cmOverride bool) (args string) {
-	x.Namespace = getNamespace(x.Namespace)
 	args = args + " --namespace=" + x.Namespace
 
 	if x.ImageRepo != "" {
-		args = args + " --set image.repository=" + x.ImageRepo
+		args = args + " --set global.repository=" + x.ImageRepo
 	}
 
 	if x.ServiceName != "" {
-		args = args + " --set service.name=" + x.ServiceName
+		args = args + " --set ricapp.service.name=" + x.ServiceName
 	}
 
 	if x.Hostname != "" {
-		args = args + " --set hostname=" + x.Hostname
+		args = args + " --set ricapp.hostname=" + x.Hostname
 	}
 
 	if cmOverride == true {
-		args = args + " --set appconfig.override=true"
+		args = args + " --set ricapp.appconfig.override=" + x.Name + "-appconfig"
 	}
 
 	rname := viper.GetString("helm.repo-name")
