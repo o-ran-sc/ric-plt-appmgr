@@ -14,41 +14,24 @@
 #   limitations under the License.
 
 #----------------------------------------------------------
-
 FROM nexus3.o-ran-sc.org:10004/bldr-ubuntu-c-go-nng:3-u16.04-nng1.1.1 AS appmgr-build
 
-RUN apt-get update -y && apt-get install -y \
-    jq
+RUN apt-get update -y  &&  apt-get install -y jq
 
 ENV PATH="/usr/local/go/bin:${PATH}"
-ARG HELMVERSION=v2.12.3
+ARG HELMVERSION=v2.13.0-rc.1
 ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
 
-COPY build/user_entrypoint.sh /
-
-RUN chmod +x /user_entrypoint.sh
-
-RUN mkdir -p /ws
-WORKDIR "/ws"
-ENTRYPOINT ["/user_entrypoint.sh"]
-CMD ["/bin/bash"]
-
-#----------------------------------------------------------
 #
-#----------------------------------------------------------
-FROM appmgr-xapp-base as appmgr-build
-
-ARG HELMVERSION=v2.12.3
-ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
-
 # helm
-RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linux-amd64.tar.gz \
+#
+RUN wget https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linux-amd64.tar.gz \
     && tar -zxvf helm-${HELMVERSION}-linux-amd64.tar.gz \
     && cp linux-amd64/helm /usr/local/bin/helm \
     && rm -rf helm-${HELMVERSION}-linux-amd64.tar.gz \
     && rm -rf linux-amd64
 
-# Install kubectl from Docker Hub
+# Install kubectl from Docker Hub.
 COPY --from=lachlanevenson/k8s-kubectl:v1.10.3 /usr/local/bin/kubectl /usr/local/bin/kubectl
 
 RUN mkdir -p /go/src/${PACKAGEURL}
@@ -67,33 +50,19 @@ RUN make -C /go/src/${PACKAGEURL} build
 CMD ["/bin/bash"]
 
 #----------------------------------------------------------
-FROM ubuntu:16.04 as appmgr
+FROM appmgr-build as appmgr-test_unit
 ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","go-test"]
 
-RUN apt-get update -y \
-    && apt-get install -y sudo openssl ca-certificates ca-cacert \
-    && apt-get clean
+#----------------------------------------------------------
+FROM appmgr-build as appmgr-test_fmt
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","go-test-fmt"]
 
-#
-# libraries and helm
-#
-COPY --from=appmgr-build /usr/local/include/ /usr/local/include/
-COPY --from=appmgr-build /usr/local/lib/ /usr/local/lib/
-COPY --from=appmgr-build /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
-
-RUN ldconfig
-
-#
-# xApp
-#
-RUN mkdir -p /opt/xAppManager \
-    && chmod -R 755 /opt/xAppManager
-
-COPY --from=appmgr-build /go/src/${PACKAGEURL}/cache/go/cmd/appmgr /opt/xAppManager/appmgr
-#COPY --from=appmgr-build /go/src/${PACKAGEURL}/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
-
-WORKDIR /opt/xAppManager
-
-COPY appmgr-entrypoint.sh /opt/xAppManager/
-ENTRYPOINT ["/opt/xAppManager/appmgr-entrypoint.sh"]
+#----------------------------------------------------------
+FROM appmgr-build as appmgr-test_sanity
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["jq","-s",".", "api/appmgr_rest_api.json"]
