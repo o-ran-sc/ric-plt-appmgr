@@ -14,7 +14,6 @@
 #   limitations under the License.
 
 #----------------------------------------------------------
-
 FROM nexus3.o-ran-sc.org:10004/bldr-ubuntu-c-go-nng:3-u16.04-nng1.1.1 AS appmgr-build
 
 RUN apt-get update -y  &&  apt-get install -y jq
@@ -51,33 +50,19 @@ RUN make -C /go/src/${PACKAGEURL} build
 CMD ["/bin/bash"]
 
 #----------------------------------------------------------
-FROM ubuntu:16.04 as appmgr
+FROM appmgr-build as appmgr-test_unit
 ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","go-test"]
 
-RUN apt-get update -y \
-    && apt-get install -y sudo openssl ca-certificates ca-cacert \
-    && apt-get clean
+#----------------------------------------------------------
+FROM appmgr-build as appmgr-test_fmt
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["make","go-test-fmt"]
 
-#
-# libraries and helm
-#
-COPY --from=appmgr-build /usr/local/include/ /usr/local/include/
-COPY --from=appmgr-build /usr/local/lib/ /usr/local/lib/
-COPY --from=appmgr-build /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
-
-RUN ldconfig
-
-#
-# xApp
-#
-RUN mkdir -p /opt/xAppManager \
-    && chmod -R 755 /opt/xAppManager
-
-COPY --from=appmgr-build /go/src/${PACKAGEURL}/cache/go/cmd/appmgr /opt/xAppManager/appmgr
-#COPY --from=appmgr-build /go/src/${PACKAGEURL}/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
-
-WORKDIR /opt/xAppManager
-
-COPY appmgr-entrypoint.sh /opt/xAppManager/
-ENTRYPOINT ["/opt/xAppManager/appmgr-entrypoint.sh"]
+#----------------------------------------------------------
+FROM appmgr-build as appmgr-test_sanity
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+WORKDIR "/go/src/${PACKAGEURL}"
+CMD ["jq","-s",".", "api/appmgr_rest_api.json"]
