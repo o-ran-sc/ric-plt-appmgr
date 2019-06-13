@@ -40,7 +40,7 @@ func (d *DB) Create() {
 		if _, err := d.session.GetAll(); err == nil {
 			return
 		}
-		mdclog(MdclogErr, "Database connection not ready, waiting ...")
+		Logger.Error("Database connection not ready, waiting ...")
 		time.Sleep(time.Duration(5 * time.Second))
 	}
 }
@@ -51,12 +51,12 @@ func (d *DB) StoreSubscriptions(m cmap.ConcurrentMap) {
 
 		data, err := json.Marshal(s.req)
 		if err != nil {
-			mdclog(MdclogErr, "json.marshal failed: "+err.Error())
+			Logger.Error("json.marshal failed: %v ", err.Error())
 			return
 		}
 
 		if err := d.session.Set(s.req.Id, data); err != nil {
-			mdclog(MdclogErr, "DB.session.Set failed: "+err.Error())
+			Logger.Error("DB.session.Set failed: %v ", err.Error())
 		}
 	}
 }
@@ -66,20 +66,20 @@ func (d *DB) RestoreSubscriptions() (m cmap.ConcurrentMap) {
 
 	keys, err := d.session.GetAll()
 	if err != nil {
-		mdclog(MdclogErr, "DB.session.GetAll failed: "+err.Error())
+		Logger.Error("DB.session.GetAll failed: %v ", err.Error())
 		return
 	}
 
 	for _, key := range keys {
 		value, err := d.session.Get([]string{key})
 		if err != nil {
-			mdclog(MdclogErr, "DB.session.Get failed: "+err.Error())
+			Logger.Error("DB.session.Get failed: %v ", err.Error())
 			return
 		}
 
 		var item SubscriptionReq
 		if err = json.Unmarshal([]byte(value[key].(string)), &item); err != nil {
-			mdclog(MdclogErr, "json.Unmarshal failed: "+err.Error())
+			Logger.Error("json.Unmarshal failed: %v ", err.Error())
 			return
 		}
 

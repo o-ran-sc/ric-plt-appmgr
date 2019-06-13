@@ -48,7 +48,7 @@ func Exec(args string) (out []byte, err error) {
 	for i := 0; i < viper.GetInt("helm.retry"); i++ {
 		err = cmd.Run()
 		if err != nil {
-			mdclog(MdclogErr, formatLog("Command failed, retrying", args, err.Error()+stderr.String()))
+			Logger.Error("Command '%s' failed with error: %v, retrying", args, err.Error()+stderr.String())
 			time.Sleep(time.Duration(2) * time.Second)
 			continue
 		}
@@ -56,7 +56,7 @@ func Exec(args string) (out []byte, err error) {
 	}
 
 	if err == nil && !strings.HasSuffix(os.Args[0], ".test") {
-		mdclog(MdclogDebug, formatLog("command success", stdout.String(), ""))
+		Logger.Info("command success: ", stdout.String())
 		return stdout.Bytes(), nil
 	}
 
@@ -82,19 +82,19 @@ func (h *Helm) Initialize() {
 
 	for {
 		if _, err := h.Init(); err == nil {
-			mdclog(MdclogDebug, formatLog("Helm init done successfully!", "", ""))
+			Logger.Info("Helm init done successfully!")
 			break
 		}
-		mdclog(MdclogErr, formatLog("helm init failed, retyring ...", "", ""))
+		Logger.Error("helm init failed, retyring ...")
 		time.Sleep(time.Duration(10) * time.Second)
 	}
 
 	for {
 		if _, err := h.AddRepo(); err == nil {
-			mdclog(MdclogDebug, formatLog("Helm repo added successfully", "", ""))
+			Logger.Info("Helm repo added successfully")
 			break
 		}
-		mdclog(MdclogErr, formatLog("Helm repo addition failed, retyring ...", "", ""))
+		Logger.Error("Helm repo addition failed, retyring ...")
 		time.Sleep(time.Duration(10) * time.Second)
 	}
 
@@ -119,7 +119,7 @@ func (h *Helm) AddRepo() (out []byte, err error) {
 	// Get helm repo user name and password from files mounted by secret object
 	credFile, err := ioutil.ReadFile(viper.GetString("helm.helm-username-file"))
 	if err != nil {
-		mdclog(MdclogErr, formatLog("helm_repo_username ReadFile failed", "", err.Error()))
+		Logger.Error("helm_repo_username ReadFile failed: %v", err.Error())
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Helm) AddRepo() (out []byte, err error) {
 
 	credFile, err = ioutil.ReadFile(viper.GetString("helm.helm-password-file"))
 	if err != nil {
-		mdclog(MdclogErr, formatLog("helm_repo_password ReadFile failed", "", err.Error()))
+		Logger.Error("helm_repo_password ReadFile failed: %v", err.Error())
 		return
 	}
 
@@ -180,7 +180,7 @@ func (h *Helm) Install(m XappDeploy) (xapp Xapp, err error) {
 func (h *Helm) Status(name string) (xapp Xapp, err error) {
 	out, err := h.Run(strings.Join([]string{"status ", name}, ""))
 	if err != nil {
-		mdclog(MdclogErr, formatLog("Getting xapps status", "", err.Error()))
+		Logger.Error("Getting xapps status: %v", err.Error())
 		return
 	}
 
@@ -190,7 +190,7 @@ func (h *Helm) Status(name string) (xapp Xapp, err error) {
 func (h *Helm) StatusAll() (xapps []Xapp, err error) {
 	xappNameList, err := h.List()
 	if err != nil {
-		mdclog(MdclogErr, formatLog("Helm list failed", "", err.Error()))
+		Logger.Error("Helm list failed: %v", err.Error())
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *Helm) List() (names []string, err error) {
 	ns := getNamespace("")
 	out, err := h.Run(strings.Join([]string{"list --all --output yaml --namespace=", ns}, ""))
 	if err != nil {
-		mdclog(MdclogErr, formatLog("Listing deployed xapps failed", "", err.Error()))
+		Logger.Error("Listing deployed xapps failed: %v", err.Error())
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *Helm) List() (names []string, err error) {
 func (h *Helm) Delete(name string) (xapp Xapp, err error) {
 	xapp, err = h.Status(name)
 	if err != nil {
-		mdclog(MdclogErr, formatLog("Fetching xapp status failed", "", err.Error()))
+		Logger.Error("Fetching xapp status failed: %v", err.Error())
 		return
 	}
 
@@ -340,7 +340,7 @@ func addTillerEnv() (err error) {
 	port := viper.GetString("helm.tiller-port")
 
 	if err = os.Setenv("HELM_HOST", service+"."+namespace+":"+port); err != nil {
-		mdclog(MdclogErr, formatLog("Tiller Env Setting Failed", "", err.Error()))
+		Logger.Error("Tiller Env Setting Failed: %v", err.Error())
 	}
 
 	return err
@@ -379,8 +379,4 @@ func getInstallArgs(x XappDeploy, cmOverride bool) (args string) {
 
 	rname := viper.GetString("helm.repo-name")
 	return fmt.Sprintf("install %s/%s --name=%s %s", rname, x.Name, x.Name, args)
-}
-
-func formatLog(text string, args string, err string) string {
-	return fmt.Sprintf("Helm: %s: args=%s err=%s\n", text, args, err)
 }
