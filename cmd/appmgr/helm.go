@@ -149,7 +149,7 @@ func (h *Helm) Install(m XappDeploy) (xapp Xapp, err error) {
 	}
 
 	var cm interface{}
-	m.Namespace = getNamespace(m.Namespace)
+	m.Namespace = h.cm.getNamespace(m.Namespace)
 
 	if err = h.cm.GetConfigMap(m, &cm); err != nil {
 		out, err = h.Run(getInstallArgs(m, false))
@@ -198,7 +198,7 @@ func (h *Helm) StatusAll() (xapps []Xapp, err error) {
 }
 
 func (h *Helm) List() (names []string, err error) {
-	ns := getNamespace("")
+	ns := h.cm.getNamespace("")
 	out, err := h.Run(strings.Join([]string{"list --all --output yaml --namespace=", ns}, ""))
 	if err != nil {
 		mdclog(MdclogErr, formatLog("Listing deployed xapps failed", "", err.Error()))
@@ -232,7 +232,7 @@ func (h *Helm) Fetch(name, tarDir string) error {
 
 // Helper functions
 func (h *Helm) GetVersion(name string) (version string) {
-	ns := getNamespace("")
+	ns := h.cm.getNamespace("")
 	out, err := h.Run(strings.Join([]string{"list --output yaml --namespace=", ns, " ", name}, ""))
 	if err != nil {
 		return
@@ -325,6 +325,11 @@ func (h *Helm) parseAllStatus(names []string) (xapps []Xapp, err error) {
 	xapps = []Xapp{}
 
 	for _, name := range names {
+		err := h.cm.ReadSchema(name, &XAppConfig{})
+		if err != nil {
+			continue
+		}
+
 		x, err := h.Status(name)
 		if err == nil {
 			xapps = append(xapps, x)
@@ -344,18 +349,6 @@ func addTillerEnv() (err error) {
 	}
 
 	return err
-}
-
-func getNamespace(namespace string) string {
-	if namespace != "" {
-		return namespace
-	}
-
-	ns := viper.GetString("xapp.namespace")
-	if ns == "" {
-		ns = "ricxapp"
-	}
-	return ns
 }
 
 func getInstallArgs(x XappDeploy, cmOverride bool) (args string) {

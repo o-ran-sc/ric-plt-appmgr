@@ -73,6 +73,7 @@ type XappManager struct {
 
 type ConfigMapper interface {
 	UploadConfig() (cfg []XAppConfig)
+	ReadSchema(name string, c *XAppConfig) (err error)
 	GetConfigMap(m XappDeploy, c *interface{}) (err error)
 	CreateConfigMap(r XAppConfig) (errList []CMError, err error)
 	UpdateConfigMap(r XAppConfig) (errList []CMError, err error)
@@ -82,6 +83,7 @@ type ConfigMapper interface {
 	ReadConfigMap(name string, ns string, c *interface{}) (err error)
 	ApplyConfigMap(r XAppConfig, action string) (err error)
 	GetMessages(name string) (msgs MessageTypes)
+	getNamespace(ns string) string
 }
 
 type Helmer interface {

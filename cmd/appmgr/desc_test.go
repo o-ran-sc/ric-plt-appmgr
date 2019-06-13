@@ -70,19 +70,27 @@ func (cm *MockedConfigMapper) UploadConfig() (cfg []XAppConfig) {
 	return
 }
 
-func (cm *MockedConfigMapper) CreateConfigMap(r XAppConfig) (errList []CMError, err error){
+func (cm *MockedConfigMapper) ReadSchema(name string, c *XAppConfig) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) UpdateConfigMap(r XAppConfig) (errList []CMError, err error){
+func (cm *MockedConfigMapper) GetConfigMap(m XappDeploy, c *interface{}) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) DeleteConfigMap(r XAppConfig) (c interface{}, err error){
+func (cm *MockedConfigMapper) CreateConfigMap(r XAppConfig) (errList []CMError, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) PurgeConfigMap(m XappDeploy) (c interface{}, err error){
+func (cm *MockedConfigMapper) UpdateConfigMap(r XAppConfig) (errList []CMError, err error) {
+	return
+}
+
+func (cm *MockedConfigMapper) DeleteConfigMap(r XAppConfig) (c interface{}, err error) {
+	return
+}
+
+func (cm *MockedConfigMapper) PurgeConfigMap(m XappDeploy) (c interface{}, err error) {
 	return
 }
 
@@ -106,6 +114,10 @@ func (cm *MockedConfigMapper) GetMessages(name string) (msgs MessageTypes) {
 	return
 }
 
+func (cm *MockedConfigMapper) getNamespace(ns string) (n string) {
+	return
+}
+
 // Test cases
 func TestGetMessages(t *testing.T) {
 	cm := ConfigMap{}
@@ -121,6 +133,19 @@ func TestGetMessages(t *testing.T) {
     result := cm.GetMessages("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {
 		t.Errorf("TestGetMessages failed: expected: %v, got: %v", expectedMsgs, result)
+	}
+}
+
+
+func TestHelmNamespace(t *testing.T) {
+	cm := ConfigMap{}
+
+	if cm.getNamespace("pltxapp") != "pltxapp" {
+        t.Errorf("getNamespace failed!")
+	}
+
+    if cm.getNamespace("") != "ricxapp" {
+        t.Errorf("getNamespace failed!")
 	}
 }
 

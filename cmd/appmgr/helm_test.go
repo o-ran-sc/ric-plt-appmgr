@@ -99,16 +99,6 @@ func TestHelmLists(t *testing.T) {
     }
 }
 
-func TestHelmNamespace(t *testing.T) {
-    if getNamespace("pltxapp") != "pltxapp" {
-        t.Errorf("getNamespace failed!")
-	}
-
-    if getNamespace("") != "ricxapp" {
-        t.Errorf("getNamespace failed!")
-	}
-}
-
 func TestAddTillerEnv(t *testing.T) {
     if addTillerEnv() != nil {
         t.Errorf("TestAddTillerEnv failed!")
@@ -116,7 +106,7 @@ func TestAddTillerEnv(t *testing.T) {
 }
 
 func TestGetInstallArgs(t *testing.T) {
-	x := XappDeploy{Name: "dummy-xapp"}
+	x := XappDeploy{Name: "dummy-xapp", Namespace: "ricxapp"}
 
 	expectedArgs := "install helm-repo/dummy-xapp --name=dummy-xapp  --namespace=ricxapp"
 	if args := getInstallArgs(x, false); args != expectedArgs {
@@ -124,19 +114,19 @@ func TestGetInstallArgs(t *testing.T) {
 	}
 
 	x.ImageRepo = "localhost:5000"
-	expectedArgs = expectedArgs + " --set image.repository=" + "localhost:5000"
+	expectedArgs = expectedArgs + " --set global.repository=" + "localhost:5000"
 	if args := getInstallArgs(x, false); args != expectedArgs {
         t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ServiceName = "xapp"
-	expectedArgs = expectedArgs + " --set service.name=" + "xapp"
+	expectedArgs = expectedArgs + " --set ricapp.service.name=" + "xapp"
 	if args := getInstallArgs(x, false); args != expectedArgs {
         t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ServiceName = "xapp"
-	expectedArgs = expectedArgs + " --set appconfig.override=true"
+	expectedArgs = expectedArgs + " --set ricapp.appconfig.override=dummy-xapp-appconfig"
 	if args := getInstallArgs(x, true); args != expectedArgs {
         t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}

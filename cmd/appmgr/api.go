@@ -57,6 +57,7 @@ func (m *XappManager) Initialize(h Helmer, cm ConfigMapper) {
 		{"POST", "/ric/v1/config", m.createConfig},
 		{"PUT", "/ric/v1/config", m.updateConfig},
 		{"DELETE", "/ric/v1/config", m.deleteConfig},
+		{"DELETE", "/ric/v1/config/{name}", m.deleteSingleConfig},
 	}
 
 	for _, resource := range resources {
@@ -284,7 +285,7 @@ func (m *XappManager) createConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusCreated, nil)
+	respondWithJSON(w, http.StatusCreated, c.Metadata)
 }
 
 func (m *XappManager) updateConfig(w http.ResponseWriter, r *http.Request) {
@@ -297,11 +298,21 @@ func (m *XappManager) updateConfig(w http.ResponseWriter, r *http.Request) {
 		if err.Error() != "Validation failed!" {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		} else {
-			respondWithJSON(w, http.StatusUnprocessableEntity, errList)
+			respondWithJSON(w, http.StatusInternalServerError, errList)
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, nil)
+	respondWithJSON(w, http.StatusOK, c.Metadata)
+}
+
+func (m *XappManager) deleteSingleConfig(w http.ResponseWriter, r *http.Request) {
+	xappName, ok := getResourceId(r, w, "name")
+	if ok != true {
+		return
+	}
+
+	md := ConfigMetadata{Name: xappName, Namespace: m.cm.getNamespace(""), ConfigName: xappName + "-appconfig"}
+	m.delConfig(w, XAppConfig{Metadata: md})
 }
 
 func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
@@ -310,11 +321,15 @@ func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.delConfig(w, c)
+}
+
+func (m *XappManager) delConfig(w http.ResponseWriter, c XAppConfig) {
 	if _, err := m.cm.DeleteConfigMap(c); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusNotFound, nil)
+	respondWithJSON(w, http.StatusNoContent, nil)
 }
 
 // Helper functions
