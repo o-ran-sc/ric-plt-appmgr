@@ -65,13 +65,14 @@ type CMError struct {
 }
 
 func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
+	ns := cm.GetNamespace("")
 	for _, name := range cm.GetNamesFromHelmRepo() {
 		if name == "appmgr" {
 			continue
 		}
 
 		c := XAppConfig{
-			Metadata: ConfigMetadata{Name: name, Namespace: "ricxapp", ConfigName: name + "-appconfig"},
+			Metadata: ConfigMetadata{Name: name, Namespace: ns, ConfigName: name + "-appconfig"},
 		}
 
 		err := cm.ReadSchema(name, &c)
@@ -79,7 +80,7 @@ func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
 			continue
 		}
 
-		err = cm.ReadConfigMap(c.Metadata.ConfigName, "ricxapp", &c.Configuration)
+		err = cm.ReadConfigMap(c.Metadata.ConfigName, ns, &c.Configuration)
 		if err != nil {
 			log.Println("No active configMap found, using default!")
 		}
@@ -291,7 +292,8 @@ func (cm *ConfigMap) FetchChart(name string) (err error) {
 func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 	log.Println("Fetching tx/rx messages for: ", name)
 
-	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n ricxapp %s-appconfig", name)
+	ns := cm.GetNamespace("")
+	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s-appconfig", ns, name)
 	out, err := KubectlExec(args)
 	if err != nil {
 		return
@@ -313,3 +315,16 @@ func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 
 	return
 }
+
+func (cm *ConfigMap) GetNamespace(ns string) string {
+	if ns != "" {
+		return ns
+	}
+
+	ns = viper.GetString("xapp.namespace")
+	if ns == "" {
+		ns = "ricxapp"
+	}
+	return ns
+}
+

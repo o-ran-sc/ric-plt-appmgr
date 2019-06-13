@@ -22,7 +22,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/segmentio/ksuid"
 	"net/http"
 	"time"
@@ -44,7 +43,7 @@ func (sd *SubscriptionDispatcher) Add(sr SubscriptionReq) (resp SubscriptionResp
 	sd.subscriptions.Set(key, Subscription{sr, resp})
 	sd.db.StoreSubscriptions(sd.subscriptions)
 
-	mdclog(MdclogInfo, fmt.Sprintf("Sub: New subscription added: key=%s value=%v", key, sr))
+	Logger.Info("Sub: New subscription added: key=%s value=%v", key, sr)
 	return
 }
 
@@ -59,7 +58,7 @@ func (sd *SubscriptionDispatcher) GetAll() (hooks []SubscriptionReq) {
 
 func (sd *SubscriptionDispatcher) Get(id string) (SubscriptionReq, bool) {
 	if v, found := sd.subscriptions.Get(id); found {
-		mdclog(MdclogInfo, fmt.Sprintf("Subscription id=%s found: %v", id, v.(Subscription).req))
+		Logger.Info("Subscription id=%s found: %v", id, v.(Subscription).req)
 
 		return v.(Subscription).req, found
 	}
@@ -68,7 +67,7 @@ func (sd *SubscriptionDispatcher) Get(id string) (SubscriptionReq, bool) {
 
 func (sd *SubscriptionDispatcher) Delete(id string) (SubscriptionReq, bool) {
 	if v, found := sd.subscriptions.Get(id); found {
-		mdclog(MdclogInfo, fmt.Sprintf("Subscription id=%s found: %v ... deleting", id, v.(Subscription).req))
+		Logger.Info("Subscription id=%s found: %v ... deleting", id, v.(Subscription).req)
 
 		sd.subscriptions.Remove(id)
 		sd.db.StoreSubscriptions(sd.subscriptions)
@@ -80,7 +79,7 @@ func (sd *SubscriptionDispatcher) Delete(id string) (SubscriptionReq, bool) {
 
 func (sd *SubscriptionDispatcher) Update(id string, sr SubscriptionReq) (SubscriptionReq, bool) {
 	if s, found := sd.subscriptions.Get(id); found {
-		mdclog(MdclogInfo, fmt.Sprintf("Subscription id=%s found: %v ... updating", id, s.(Subscription).req))
+		Logger.Info("Subscription id=%s found: %v ... updating", id, s.(Subscription).req)
 
 		sr.Id = id
 		sd.subscriptions.Set(id, Subscription{sr, s.(Subscription).resp})
@@ -97,7 +96,7 @@ func (sd *SubscriptionDispatcher) Publish(x Xapp, et EventType) {
 
 func (sd *SubscriptionDispatcher) notifyClients(xapps []Xapp, et EventType) {
 	if len(xapps) == 0 || len(sd.subscriptions) == 0 {
-		mdclog(MdclogInfo, fmt.Sprintf("Nothing to publish [%d:%d]", len(xapps), len(sd.subscriptions)))
+		Logger.Info("Nothing to publish [%d:%d]", len(xapps), len(sd.subscriptions))
 		return
 	}
 
@@ -113,7 +112,7 @@ func (sd *SubscriptionDispatcher) notify(xapps []Xapp, et EventType, s Subscript
 
 	jsonData, err := json.Marshal(notif)
 	if err != nil {
-		mdclog(MdclogInfo, fmt.Sprintf("json.Marshal failed: %v", err))
+		Logger.Info("json.Marshal failed: %v", err)
 		return err
 	}
 
@@ -121,16 +120,16 @@ func (sd *SubscriptionDispatcher) notify(xapps []Xapp, et EventType, s Subscript
 	return sd.retry(s, func() error {
 		resp, err := http.Post(s.req.TargetUrl, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {
-			mdclog(MdclogInfo, fmt.Sprintf("Posting to subscription failed: %v", err))
+			Logger.Info("Posting to subscription failed: %v", err)
 			return err
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			mdclog(MdclogInfo, fmt.Sprintf("Client returned error code: %d", resp.StatusCode))
+			Logger.Info("Client returned error code: %d", resp.StatusCode)
 			return err
 		}
 
-		mdclog(MdclogInfo, fmt.Sprintf("subscription to '%s' dispatched, response code: %d \n", s.req.TargetUrl, resp.StatusCode))
+		Logger.Info("subscription to '%s' dispatched, response code: %d", s.req.TargetUrl, resp.StatusCode)
 		return nil
 	})
 }

@@ -28,6 +28,7 @@ RUN sed -i -e "s,http://security.ubuntu.com/ubuntu,$(wget -qO - mirrors.ubuntu.c
 # packages
 #
 RUN apt-get update -y && \
+    apt-get upgrade -y && \
     apt-get install -y \
     build-essential \
     apt-utils \
@@ -53,16 +54,6 @@ RUN wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz && \
 	tar -C /usr/local -xvf ./go1.12.linux-amd64.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
-
-#
-# rancodev libs
-#
-RUN mkdir -p /opt/build \
-    && cd /opt/build && git clone https://gerrit.o-ran-sc.org/r/ric-plt/lib/rmr \
-    && cd rmr/; mkdir build; cd build; cmake ..; make install \
-    && cd /opt/build && git clone https://gerrit.o-ran-sc.org/r/com/log \
-    && cd log/ ; ./autogen.sh ; ./configure ; make ; make install \
-    && ldconfig
 
 COPY build/user_entrypoint.sh /
 

@@ -19,38 +19,54 @@
 
 package main
 
-/*
-#cgo CFLAGS: -I/usr/local/include
-#cgo LDFLAGS: -lmdclog
-#
-#include <mdclog/mdclog.h>
-void xAppMgr_mdclog_write(mdclog_severity_t severity, const char *msg) {
-     mdclog_write(severity, "%s", msg);
-}
-*/
-import "C"
-
 import (
-	"fmt"
 	"net/http"
 	"time"
+	mdclog "gerrit.o-ran-sc.org/r/com/golog"
 )
 
-func mdclog(severity C.mdclog_severity_t, msg string) {
-	msg = fmt.Sprintf("%s:: %s ", time.Now().Format("2019-01-02 15:04:05"), msg)
-
-	C.mdclog_mdc_add(C.CString("XM"), C.CString("1.0.1"))
-	C.xAppMgr_mdclog_write(severity, C.CString(msg))
+type Log struct {
+	logger *mdclog.MdcLogger
 }
 
-func mdclogSetLevel(severity C.mdclog_severity_t) {
-	C.mdclog_level_set(severity)
+func NewLogger(name string) *Log {
+	l, _ := mdclog.InitLogger(name)
+	return &Log{
+		logger: l,
+	}
 }
 
-func Logger(inner http.Handler) http.Handler {
+func (l *Log) SetLevel(level int) {
+	l.logger.LevelSet(mdclog.Level(level))
+}
+
+func (l *Log) SetMdc(key string, value string) {
+	l.logger.MdcAdd(key, value)
+}
+
+func (l *Log) Error(pattern string, args ...interface{}) {
+	l.SetMdc("time", time.Now().Format("2019-01-02 15:04:05"))
+	l.logger.Error(pattern, args...)
+}
+
+func (l *Log) Warn(pattern string, args ...interface{}) {
+	l.SetMdc("time", time.Now().Format("2019-01-02 15:04:05"))
+	l.logger.Warning(pattern, args...)
+}
+
+func (l *Log) Info(pattern string, args ...interface{}) {
+	l.SetMdc("time", time.Now().Format("2019-01-02 15:04:05"))
+	l.logger.Info(pattern, args...)
+}
+
+func (l *Log) Debug(pattern string, args ...interface{}) {
+	l.SetMdc("time", time.Now().Format("2019-01-02 15:04:05"))
+	l.logger.Debug(pattern, args...)
+}
+
+func LogRestRequests(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inner.ServeHTTP(w, r)
-		s := fmt.Sprintf("Logger: method=%s url=%s", r.Method, r.URL.RequestURI())
-		mdclog(C.MDCLOG_DEBUG, s)
+		Logger.Info("Logger: method=%s url=%s", r.Method, r.URL.RequestURI())
 	})
 }

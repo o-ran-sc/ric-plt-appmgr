@@ -77,11 +77,13 @@ type ConfigMapper interface {
 	CreateConfigMap(r XAppConfig) (errList []CMError, err error)
 	UpdateConfigMap(r XAppConfig) (errList []CMError, err error)
 	DeleteConfigMap(r XAppConfig) (cm interface{}, err error)
+	ReadSchema(name string, c *XAppConfig) (err error)
 	PurgeConfigMap(m XappDeploy) (cm interface{}, err error)
 	RestoreConfigMap(m XappDeploy, cm interface{}) (err error)
 	ReadConfigMap(name string, ns string, c *interface{}) (err error)
 	ApplyConfigMap(r XAppConfig, action string) (err error)
 	GetMessages(name string) (msgs MessageTypes)
+	GetNamespace(ns string) string
 }
 
 type Helmer interface {

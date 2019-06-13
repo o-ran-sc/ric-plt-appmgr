@@ -69,6 +69,7 @@ func (h *MockedHelmer) Delete(name string) (Xapp, error) {
 
 // Test cases
 func TestMain(m *testing.M) {
+	Logger = NewLogger("xapp-manager")
 	loadConfig()
 
 	xapp = Xapp{}
@@ -185,7 +186,7 @@ func TestDeleteConfigOk(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/ric/v1/config", bytes.NewBuffer(payload))
 	response := executeRequest(req)
 
-	checkResponseCode(t, http.StatusNotFound, response.Code)
+	checkResponseCode(t, http.StatusNoContent, response.Code)
 }
 
 // Error handling

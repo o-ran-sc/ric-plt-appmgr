@@ -57,10 +57,11 @@ func (m *XappManager) Initialize(h Helmer, cm ConfigMapper) {
 		{"POST", "/ric/v1/config", m.createConfig},
 		{"PUT", "/ric/v1/config", m.updateConfig},
 		{"DELETE", "/ric/v1/config", m.deleteConfig},
+		{"DELETE", "/ric/v1/config/{name}", m.deleteSingleConfig},
 	}
 
 	for _, resource := range resources {
-		handler := Logger(resource.HandlerFunc)
+		handler := LogRestRequests(resource.HandlerFunc)
 		//handler = m.serviceChecker(handler)
 		m.router.Methods(resource.Method).Path(resource.Url).Handler(handler)
 	}
@@ -139,7 +140,7 @@ func (m *XappManager) getXappInstanceByName(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-	mdclog(MdclogErr, "Xapp instance not found - url="+r.URL.RequestURI())
+	Logger.Error("Xapp instance not found - url=%s", r.URL.RequestURI())
 
 	respondWithError(w, http.StatusNotFound, "Xapp instance not found")
 }
@@ -156,14 +157,14 @@ func (m *XappManager) getAllXapps(w http.ResponseWriter, r *http.Request) {
 
 func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		mdclog(MdclogErr, "No xapp data found in request body - url="+r.URL.RequestURI())
+		Logger.Error("No xapp data found in request body - url=%s", r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "No xapp data!")
 		return
 	}
 
 	var cm XappDeploy
 	if err := json.NewDecoder(r.Body).Decode(&cm); err != nil {
-		mdclog(MdclogErr, "Invalid xapp data in request body - url="+r.URL.RequestURI())
+		Logger.Error("Invalid xapp data in request body - url=%s", r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "Invalid xapp data!")
 		return
 	}
@@ -207,7 +208,7 @@ func (m *XappManager) getSubscription(w http.ResponseWriter, r *http.Request) {
 		if s, ok := m.sd.Get(id); ok {
 			respondWithJSON(w, http.StatusOK, s)
 		} else {
-			mdclog(MdclogErr, "Subscription not found - url="+r.URL.RequestURI())
+			Logger.Error("Subscription not found - url=%s", r.URL.RequestURI())
 			respondWithError(w, http.StatusNotFound, "Subscription not found")
 		}
 	}
@@ -218,7 +219,7 @@ func (m *XappManager) deleteSubscription(w http.ResponseWriter, r *http.Request)
 		if _, ok := m.sd.Delete(id); ok {
 			respondWithJSON(w, http.StatusNoContent, nil)
 		} else {
-			mdclog(MdclogErr, "Subscription not found - url="+r.URL.RequestURI())
+			Logger.Error("Subscription not found - url=%s", r.URL.RequestURI())
 			respondWithError(w, http.StatusNotFound, "Subscription not found")
 		}
 	}
@@ -227,7 +228,7 @@ func (m *XappManager) deleteSubscription(w http.ResponseWriter, r *http.Request)
 func (m *XappManager) addSubscription(w http.ResponseWriter, r *http.Request) {
 	var req SubscriptionReq
 	if r.Body == nil || json.NewDecoder(r.Body).Decode(&req) != nil {
-		mdclog(MdclogErr, "Invalid request payload - url="+r.URL.RequestURI())
+		Logger.Error("Invalid request payload - url=%s", r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "Invalid request payload")
 		return
 	}
@@ -240,7 +241,7 @@ func (m *XappManager) updateSubscription(w http.ResponseWriter, r *http.Request)
 	if id, ok := getResourceId(r, w, "id"); ok == true {
 		var req SubscriptionReq
 		if r.Body == nil || json.NewDecoder(r.Body).Decode(&req) != nil {
-			mdclog(MdclogErr, "Invalid request payload - url="+r.URL.RequestURI())
+			Logger.Error("Invalid request payload - url=%s", r.URL.RequestURI())
 			respondWithError(w, http.StatusMethodNotAllowed, "Invalid request payload")
 			return
 		}
@@ -249,7 +250,7 @@ func (m *XappManager) updateSubscription(w http.ResponseWriter, r *http.Request)
 		if s, ok := m.sd.Update(id, req); ok {
 			respondWithJSON(w, http.StatusOK, s)
 		} else {
-			mdclog(MdclogErr, "Subscription not found - url="+r.URL.RequestURI())
+			Logger.Error("Subscription not found - url=%s", r.URL.RequestURI())
 			respondWithError(w, http.StatusNotFound, "Subscription not found")
 		}
 	}
@@ -258,7 +259,7 @@ func (m *XappManager) updateSubscription(w http.ResponseWriter, r *http.Request)
 func (m *XappManager) notifyClients() {
 	xapps, err := m.helm.StatusAll()
 	if err != nil {
-		mdclog(MdclogInfo, "Couldn't fetch xapps status information"+err.Error())
+		Logger.Info("Couldn't fetch xapps status information: %v", err.Error())
 		return
 	}
 
@@ -284,7 +285,7 @@ func (m *XappManager) createConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusCreated, nil)
+	respondWithJSON(w, http.StatusCreated, c.Metadata)
 }
 
 func (m *XappManager) updateConfig(w http.ResponseWriter, r *http.Request) {
@@ -297,11 +298,21 @@ func (m *XappManager) updateConfig(w http.ResponseWriter, r *http.Request) {
 		if err.Error() != "Validation failed!" {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		} else {
-			respondWithJSON(w, http.StatusUnprocessableEntity, errList)
+			respondWithJSON(w, http.StatusInternalServerError, errList)
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, nil)
+	respondWithJSON(w, http.StatusOK, c.Metadata)
+}
+
+func (m *XappManager) deleteSingleConfig(w http.ResponseWriter, r *http.Request) {
+	xappName, ok := getResourceId(r, w, "name")
+	if ok != true {
+		return
+	}
+
+	md := ConfigMetadata{Name: xappName, Namespace: m.cm.GetNamespace(""), ConfigName: xappName + "-appconfig"}
+	m.delConfig(w, XAppConfig{Metadata: md})
 }
 
 func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
@@ -310,11 +321,15 @@ func (m *XappManager) deleteConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.delConfig(w, c)
+}
+
+func (m *XappManager) delConfig(w http.ResponseWriter, c XAppConfig) {
 	if _, err := m.cm.DeleteConfigMap(c); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusNotFound, nil)
+	respondWithJSON(w, http.StatusNoContent, nil)
 }
 
 // Helper functions
@@ -333,7 +348,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func getResourceId(r *http.Request, w http.ResponseWriter, pattern string) (id string, ok bool) {
 	if id, ok = mux.Vars(r)[pattern]; ok != true {
-		mdclog(MdclogErr, "Couldn't resolve name/id from the request URL")
+		Logger.Error("Couldn't resolve name/id from the request URL")
 		respondWithError(w, http.StatusMethodNotAllowed, "Couldn't resolve name/id from the request URL")
 		return
 	}
@@ -342,7 +357,7 @@ func getResourceId(r *http.Request, w http.ResponseWriter, pattern string) (id s
 
 func parseConfig(w http.ResponseWriter, r *http.Request, req *XAppConfig) error {
 	if r.Body == nil || json.NewDecoder(r.Body).Decode(&req) != nil {
-		mdclog(MdclogErr, "Invalid request payload - url="+r.URL.RequestURI())
+		Logger.Error("Invalid request payload - url=%s", r.URL.RequestURI())
 		respondWithError(w, http.StatusMethodNotAllowed, "Invalid request payload")
 		return errors.New("Invalid payload")
 	}

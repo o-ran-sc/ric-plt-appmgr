@@ -1,3 +1,6 @@
+gerrit.o-ran-sc.org/r/com/golog.git v0.0.1 h1:9RfO/Whehaaq5KiJTT7s+YOzmi9mT1C3HktfhwwMEmw=
+gerrit.o-ran-sc.org/r/com/golog.git v0.0.1/go.mod h1:b8YB31U8/4iRpABioeSzGi/YMzOQ/Zq7hrJmmXKqlJk=
+gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.1.1/go.mod h1:2Y8gw2jqj9urI8VFqFQn7BX0J3A852+YrXVV9V8gOt4=
 gerrit.oran-osc.org/r/ric-plt/sdlgo.git v0.0.1 h1:l2dl31r++3xhgCumTzwvuo0/F415eqU4aFk/uDQ4WnM=
 gerrit.oran-osc.org/r/ric-plt/sdlgo.git v0.0.1/go.mod h1:LVhkNS82IofJTBK/VYPKiYed9MG/3OFwvWC6MGSDw1w=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=

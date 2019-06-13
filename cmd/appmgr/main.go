@@ -19,8 +19,10 @@
 
 package main
 
+var Logger *Log
+
 func main() {
-	mdclogSetLevel(MdclogDebug)
+	Logger = NewLogger("xapp-manager")
 
 	loadConfig()
 
