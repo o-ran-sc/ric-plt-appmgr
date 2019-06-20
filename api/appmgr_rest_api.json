@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "description": "This is a draft API for RIC appmgr",
-    "version": "0.1.3",
+    "version": "0.1.5",
     "title": "RIC appmgr",
     "license": {
       "name": "Apache 2.0",
@@ -12,7 +12,6 @@
   "host": "hostname",
   "basePath": "/ric/v1",
   "schemes": [
-    "https",
     "http"
   ],
   "paths": {
@@ -134,6 +133,29 @@
             "description": "successful query of xApps",
             "schema": {
               "$ref": "#/definitions/AllXapps"
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        }
+      }
+    },
+    "/xapps/search": {
+        "get": {
+        "summary": "Returns the list of all deployable xapps",
+        "tags": [
+          "xapp"
+        ],
+        "operationId": "searchAllXapps",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "successful search of deployable xApps",
+            "schema": {
+              "$ref": "#/definitions/AllSearchXapps"
             }
           },
           "500": {
@@ -547,6 +569,13 @@
     }
   },
   "definitions": {
+    "AllSearchXapps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "example": "xapp-dummy"
+      }
+    },
     "AllXapps": {
       "type": "array",
       "items": {

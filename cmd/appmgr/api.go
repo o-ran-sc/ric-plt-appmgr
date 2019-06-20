@@ -42,6 +42,7 @@ func (m *XappManager) Initialize(h Helmer, cm ConfigMapper) {
 		{"GET", "/ric/v1/health/ready", m.getHealthStatus},
 
 		{"GET", "/ric/v1/xapps", m.getAllXapps},
+		{"GET", "/ric/v1/xapps/search", m.searchAllXapps},
 		{"GET", "/ric/v1/xapps/{name}", m.getXappByName},
 		{"GET", "/ric/v1/xapps/{name}/instances/{id}", m.getXappInstanceByName},
 		{"POST", "/ric/v1/xapps", m.deployXapp},
@@ -153,6 +154,10 @@ func (m *XappManager) getAllXapps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, xapps)
+}
+
+func (m *XappManager) searchAllXapps(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, m.helm.SearchAll())
 }
 
 func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
