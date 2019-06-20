@@ -208,6 +208,10 @@ func (h *Helm) List() (names []string, err error) {
 	return h.GetNames(string(out))
 }
 
+func (h *Helm) SearchAll() (names []string) {
+	return h.cm.GetNamesFromHelmRepo()
+}
+
 func (h *Helm) Delete(name string) (xapp Xapp, err error) {
 	xapp, err = h.Status(name)
 	if err != nil {

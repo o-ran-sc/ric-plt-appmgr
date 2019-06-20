@@ -84,6 +84,7 @@ type ConfigMapper interface {
 	ApplyConfigMap(r XAppConfig, action string) (err error)
 	GetMessages(name string) (msgs MessageTypes)
 	GetNamespace(ns string) string
+	GetNamesFromHelmRepo() (names []string)
 }
 
 type Helmer interface {
@@ -92,6 +93,7 @@ type Helmer interface {
 	Install(m XappDeploy) (xapp Xapp, err error)
 	Status(name string) (xapp Xapp, err error)
 	StatusAll() (xapps []Xapp, err error)
+	SearchAll() (xapps []string)
 	List() (xapps []string, err error)
 	Delete(name string) (xapp Xapp, err error)
 }

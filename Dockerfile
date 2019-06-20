@@ -69,9 +69,8 @@ CMD ["/bin/bash"]
 #----------------------------------------------------------
 FROM appmgr-xapp-base as appmgr-build
 
-ARG PACKAGEURL
-ARG HELMVERSION
-
+ARG HELMVERSION=v2.13.0-rc.1
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 
 #
 # helm
@@ -105,7 +104,7 @@ CMD ["/bin/bash"]
 #
 #----------------------------------------------------------
 FROM appmgr-build as appmgr-test_unit
-ARG PACKAGEURL
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 WORKDIR "/go/src/${PACKAGEURL}"
 CMD ["make","go-test"]
 
@@ -114,7 +113,7 @@ CMD ["make","go-test"]
 #
 #----------------------------------------------------------
 FROM appmgr-build as appmgr-test_fmt
-ARG PACKAGEURL
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 WORKDIR "/go/src/${PACKAGEURL}"
 CMD ["make","go-test-fmt"]
 
@@ -122,7 +121,7 @@ CMD ["make","go-test-fmt"]
 #
 #----------------------------------------------------------
 FROM appmgr-build as appmgr-test_sanity
-ARG PACKAGEURL
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 WORKDIR "/go/src/${PACKAGEURL}"
 CMD ["jq","-s",".", "api/appmgr_rest_api.json"]
 
@@ -131,7 +130,7 @@ CMD ["jq","-s",".", "api/appmgr_rest_api.json"]
 #
 #----------------------------------------------------------
 FROM ubuntu:16.04 as appmgr
-ARG PACKAGEURL
+ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 
 RUN apt-get update -y \
     && apt-get install -y sudo openssl ca-certificates ca-cacert \

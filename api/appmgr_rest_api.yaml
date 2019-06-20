@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   description: This is a draft API for RIC appmgr
-  version: 0.1.3
+  version: 0.1.5
   title: RIC appmgr
   license:
     name: Apache 2.0
@@ -9,7 +9,6 @@ info:
 host: hostname
 basePath: /ric/v1
 schemes:
-  - https
   - http
 paths:
   /health/alive :
@@ -95,7 +94,22 @@ paths:
         '200':
           description: successful query of xApps
           schema:
-            $ref: '#/definitions/AllXapps'
+            $ref: '#/definitions/AllDeployedXapps'
+        '500':
+          description: Internal error
+  '/xapps/list':
+    get:
+      summary: Returns the list of all deployable xapps
+      tags:
+        - xapp
+      operationId: listAllXapps
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: successful list of deployable xApps
+          schema:
+            $ref: '#/definitions/AllDeployableXapps'
         '500':
           description: Internal error
   '/xapps/{xAppName}':
@@ -366,7 +380,12 @@ paths:
         '400':
           description: Invalid subscription supplied
 definitions:
-  AllXapps:
+  AllDeployableXapps:
+    type: array
+    items:
+      type: string
+      example: "xapp-dummy"
+  AllDeployedXapps:
     type: array
     items:
       $ref: '#/definitions/Xapp'
@@ -557,4 +576,4 @@ definitions:
           - deleted
           - updated
       xApps:
-        $ref: '#/definitions/AllXapps'
+        $ref: '#/definitions/AllDeployedXapps'

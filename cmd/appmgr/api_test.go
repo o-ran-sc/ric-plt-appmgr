@@ -55,6 +55,10 @@ func (h *MockedHelmer) StatusAll() ([]Xapp, error) {
 	return xapps, helmError
 }
 
+func (h *MockedHelmer) SearchAll() (s []string) {
+	return s
+}
+
 func (h *MockedHelmer) List() (names []string, err error) {
 	return names, helmError
 }

@@ -118,6 +118,10 @@ func (cm *MockedConfigMapper) GetNamespace(ns string) (n string) {
 	return
 }
 
+func (cm *MockedConfigMapper) GetNamesFromHelmRepo() (names []string) {
+	return
+}
+
 // Test cases
 func TestGetMessages(t *testing.T) {
 	cm := ConfigMap{}
