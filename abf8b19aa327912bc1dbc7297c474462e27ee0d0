@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "6017cbbd_20d72e52",
+        "filename": "api/appmgr_rest_api.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 100,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-06-21T11:21:05Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "9cc28bb0_8e0be946",
+      "range": {
+        "startLine": 100,
+        "startChar": 10,
+        "endLine": 100,
+        "endChar": 16
+      },
+      "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "63670636_aaaa58d8",
         "filename": "api/appmgr_rest_api.yaml",
         "patchSetId": 2
@@ -45,6 +69,30 @@
       "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
       "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f6bb8baf_30834c5b",
+        "filename": "api/appmgr_rest_api.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 105,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-06-21T11:21:05Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "63670636_aaaa58d8",
+      "range": {
+        "startLine": 105,
+        "startChar": 19,
+        "endLine": 105,
+        "endChar": 25
+      },
+      "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": false
     },
     {
       "key": {
@@ -71,6 +119,30 @@
     },
     {
       "key": {
+        "uuid": "1cb94c54_99bd5898",
+        "filename": "api/appmgr_rest_api.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 110,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-06-21T11:21:05Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "20752534_d7ef6c18",
+      "range": {
+        "startLine": 110,
+        "startChar": 23,
+        "endLine": 110,
+        "endChar": 40
+      },
+      "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "73d37b3e_2506d282",
         "filename": "api/appmgr_rest_api.yaml",
         "patchSetId": 2
@@ -94,6 +166,30 @@
     },
     {
       "key": {
+        "uuid": "1f6e84c1_1f4d5e0e",
+        "filename": "api/appmgr_rest_api.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 383,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-06-21T11:21:05Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "73d37b3e_2506d282",
+      "range": {
+        "startLine": 383,
+        "startChar": 5,
+        "endLine": 383,
+        "endChar": 11
+      },
+      "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "9eac0dfc_7dddfbd6",
         "filename": "api/appmgr_rest_api.yaml",
         "patchSetId": 2
@@ -114,6 +210,30 @@
       "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
       "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "538c4619_b2210584",
+        "filename": "api/appmgr_rest_api.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 388,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-06-21T11:21:05Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "9eac0dfc_7dddfbd6",
+      "range": {
+        "startLine": 388,
+        "startChar": 2,
+        "endLine": 388,
+        "endChar": 10
+      },
+      "revId": "abf8b19aa327912bc1dbc7297c474462e27ee0d0",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": false
     }
   ]
 }
