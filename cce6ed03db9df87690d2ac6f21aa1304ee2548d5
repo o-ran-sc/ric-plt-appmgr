@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3acb114f_509e2c0d",
+        "filename": "Dockerfile",
+        "patchSetId": 3
+      },
+      "lineNbr": 24,
+      "author": {
+        "id": 1000046
+      },
+      "writtenOn": "2019-06-21T14:38:42Z",
+      "side": 1,
+      "message": "As we discussed in our last meeting, the helm version the rest of the team is using is v2.12.3\n@Nune, do you have a chance to test if that works for xappmgr?",
+      "revId": "cce6ed03db9df87690d2ac6f21aa1304ee2548d5",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    }
+  ]
+}
