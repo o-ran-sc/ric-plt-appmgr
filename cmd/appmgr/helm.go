@@ -293,7 +293,7 @@ func (h *Helm) FillInstanceData(name string, out string, xapp *Xapp, msgs Messag
 	ip, port := h.GetAddress(out)
 
 	var tmp string
-	r := regexp.MustCompile(`(?s)\/Pod.*?\/Service`)
+	r := regexp.MustCompile(`.*(?s)(Running|Pending|Succeeded|Failed|Unknown).*?\r?\n\r?\n`)
 	result := r.FindStringSubmatch(string(out))
 	if result == nil {
 		return
