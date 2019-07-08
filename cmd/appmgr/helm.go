@@ -273,6 +273,16 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 	return
 }
 
+func (h *Helm) GetEndpointInfo(name string) (ip string, port int) {
+	args := fmt.Sprintf(" get endpoints -o=jsonpath='{.subsets[*].addresses[*].ip}' %s -n %s", name, h.cm.GetNamespace(""))
+	out, err := KubectlExec(args)
+	if err != nil {
+		return
+	}
+
+	return string(out), 4560
+}
+
 func (h *Helm) GetNames(out string) (names []string, err error) {
 	re := regexp.MustCompile(`Name: .*`)
 	result := re.FindAllStringSubmatch(out, -1)
@@ -290,7 +300,7 @@ func (h *Helm) GetNames(out string) (names []string, err error) {
 }
 
 func (h *Helm) FillInstanceData(name string, out string, xapp *Xapp, msgs MessageTypes) {
-	ip, port := h.GetAddress(out)
+	ip, port := h.GetEndpointInfo(name)
 
 	var tmp string
 	r := regexp.MustCompile(`.*(?s)(Running|Pending|Succeeded|Failed|Unknown).*?\r?\n\r?\n`)
@@ -307,7 +317,7 @@ func (h *Helm) FillInstanceData(name string, out string, xapp *Xapp, msgs Messag
 			fmt.Sscanf(v[0], "%s %s %s", &x.Name, &tmp, &x.Status)
 			x.Status = strings.ToLower(x.Status)
 			x.Ip = ip
-			x.Port, _ = strconv.Atoi(strings.Split(port, "/")[0])
+			x.Port = port
 			x.TxMessages = msgs.TxMessages
 			x.RxMessages = msgs.RxMessages
 			xapp.Instances = append(xapp.Instances, x)
