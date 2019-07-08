@@ -20,9 +20,9 @@
 package main
 
 import (
+	mdclog "gerrit.o-ran-sc.org/r/com/golog"
 	"net/http"
 	"time"
-	mdclog "gerrit.o-ran-sc.org/r/com/golog"
 )
 
 type Log struct {

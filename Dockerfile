@@ -69,7 +69,7 @@ CMD ["/bin/bash"]
 #----------------------------------------------------------
 FROM appmgr-xapp-base as appmgr-build
 
-ARG HELMVERSION=v2.13.0-rc.1
+ARG HELMVERSION=v2.12.3
 ARG PACKAGEURL=gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/
 
 #

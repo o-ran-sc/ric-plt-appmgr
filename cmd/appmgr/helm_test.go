@@ -20,10 +20,9 @@
 package main
 
 import (
-    "testing"
-    "reflect"
+	"reflect"
+	"testing"
 )
-
 
 var helmStatusOutput = `
 LAST DEPLOYED: Sat Mar  9 06:50:45 2019
@@ -70,38 +69,40 @@ Releases:
   Status: DEPLOYED
   Updated: Sun Mar 24 07:17:00 2019`
 
-
 var h = Helm{}
 
 func TestHelmStatus(t *testing.T) {
 	h.SetCM(&ConfigMap{})
+	KubectlExec = func(args string) (out []byte, err error) {
+		return []byte("10.102.184.212"), nil
+	}
 	xapp, err := h.ParseStatus("dummy-xapp", helmStatusOutput)
-    if err != nil {
-        t.Errorf("Helm install failed: %v", err)
+	if err != nil {
+		t.Errorf("Helm install failed: %v", err)
 	}
 
-    x := getXappData()
-    xapp.Version = "1.0"
+	x := getXappData()
+	xapp.Version = "1.0"
 
-    if !reflect.DeepEqual(xapp, x) {
-        t.Errorf("\n%v \n%v", xapp, x)
-    }
+	if !reflect.DeepEqual(xapp, x) {
+		t.Errorf("\n%v \n%v", xapp, x)
+	}
 }
 
 func TestHelmLists(t *testing.T) {
-    names, err := h.GetNames(helListOutput)
-    if err != nil {
-        t.Errorf("Helm status failed: %v", err)
+	names, err := h.GetNames(helListOutput)
+	if err != nil {
+		t.Errorf("Helm status failed: %v", err)
 	}
 
-    if !reflect.DeepEqual(names, []string{"dummy-xapp", "dummy-xapp2"}) {
-        t.Errorf("Helm status failed: %v", err)
-    }
+	if !reflect.DeepEqual(names, []string{"dummy-xapp", "dummy-xapp2"}) {
+		t.Errorf("Helm status failed: %v", err)
+	}
 }
 
 func TestAddTillerEnv(t *testing.T) {
-    if addTillerEnv() != nil {
-        t.Errorf("TestAddTillerEnv failed!")
+	if addTillerEnv() != nil {
+		t.Errorf("TestAddTillerEnv failed!")
 	}
 }
 
@@ -110,35 +111,34 @@ func TestGetInstallArgs(t *testing.T) {
 
 	expectedArgs := "install helm-repo/dummy-xapp --name=dummy-xapp  --namespace=ricxapp"
 	if args := getInstallArgs(x, false); args != expectedArgs {
-        t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
+		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ImageRepo = "localhost:5000"
 	expectedArgs = expectedArgs + " --set global.repository=" + "localhost:5000"
 	if args := getInstallArgs(x, false); args != expectedArgs {
-        t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
+		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ServiceName = "xapp"
 	expectedArgs = expectedArgs + " --set ricapp.service.name=" + "xapp"
 	if args := getInstallArgs(x, false); args != expectedArgs {
-        t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
+		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ServiceName = "xapp"
 	expectedArgs = expectedArgs + " --set ricapp.appconfig.override=dummy-xapp-appconfig"
 	if args := getInstallArgs(x, true); args != expectedArgs {
-        t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
+		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 }
 
 func getXappData() (x Xapp) {
-    x = generateXapp("dummy-xapp", "deployed", "1.0", "dummy-xapp-8984fc9fd-bkcbp", "running", "10.102.184.212", "80")
-    x.Instances = append(x.Instances, x.Instances[0])
-    x.Instances = append(x.Instances, x.Instances[0])
-    x.Instances[1].Name = "dummy-xapp-8984fc9fd-l6xch"
-    x.Instances[2].Name = "dummy-xapp-8984fc9fd-pp4hg"
+	x = generateXapp("dummy-xapp", "deployed", "1.0", "dummy-xapp-8984fc9fd-bkcbp", "running", "10.102.184.212", "4560")
+	x.Instances = append(x.Instances, x.Instances[0])
+	x.Instances = append(x.Instances, x.Instances[0])
+	x.Instances[1].Name = "dummy-xapp-8984fc9fd-l6xch"
+	x.Instances[2].Name = "dummy-xapp-8984fc9fd-pp4hg"
 
-    return x
+	return x
 }
-

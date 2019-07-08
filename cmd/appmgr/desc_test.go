@@ -20,11 +20,11 @@
 package main
 
 import (
-	"testing"
-	"reflect"
-	"errors"
 	"encoding/json"
+	"errors"
 	"log"
+	"reflect"
+	"testing"
 )
 
 var helmSearchOutput = `
@@ -59,8 +59,8 @@ var kubectlConfigmapOutput = `
 `
 
 type ConfigSample struct {
-	Level  	int
-	Host 	string
+	Level int
+	Host  string
 }
 
 type MockedConfigMapper struct {
@@ -74,7 +74,7 @@ func (cm *MockedConfigMapper) UploadConfig() (cfg []XAppConfig) {
 	return
 }
 
-func (cm *MockedConfigMapper) CreateConfigMap(r XAppConfig) (errList []CMError, err error){
+func (cm *MockedConfigMapper) CreateConfigMap(r XAppConfig) (errList []CMError, err error) {
 	return
 }
 
@@ -134,7 +134,7 @@ func TestGetMessages(t *testing.T) {
 		return []byte(kubectlConfigmapOutput), nil
 	}
 
-    result := cm.GetMessages("dummy-xapp")
+	result := cm.GetMessages("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {
 		t.Errorf("TestGetMessages failed: expected: %v, got: %v", expectedMsgs, result)
 	}
@@ -144,11 +144,11 @@ func TestHelmNamespace(t *testing.T) {
 	cm := ConfigMap{}
 
 	if cm.GetNamespace("pltxapp") != "pltxapp" {
-        t.Errorf("getNamespace failed!")
+		t.Errorf("getNamespace failed!")
 	}
 
-    if cm.GetNamespace("") != "ricxapp" {
-        t.Errorf("getNamespace failed!")
+	if cm.GetNamespace("") != "default" {
+		t.Errorf("getNamespace failed!")
 	}
 }
 
