@@ -327,4 +327,3 @@ func (cm *ConfigMap) GetNamespace(ns string) string {
 	}
 	return ns
 }
-
