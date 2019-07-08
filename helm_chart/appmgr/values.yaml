@@ -74,7 +74,7 @@ appconfig:
       "retry": 1
     "xapp":
       #Namespace to install xAPPs
-      "namespace": "ricxapp"
+      "namespace": "default"
       "tarDir": "/tmp"
       "schema": "descriptors/schema.json"
       "config": "config/config-file.json"
