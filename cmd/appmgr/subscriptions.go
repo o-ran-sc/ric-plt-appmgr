@@ -107,9 +107,13 @@ func (sd *SubscriptionDispatcher) notifyClients(xapps []Xapp, et EventType) {
 }
 
 func (sd *SubscriptionDispatcher) notify(xapps []Xapp, et EventType, s Subscription, seq int) error {
-	notif := []SubscriptionNotif{}
-	notif = append(notif, SubscriptionNotif{Id: s.req.Id, Version: seq, EventType: string(et), XappData: xapps})
+	xappData, err := json.Marshal(xapps)
+        if err != nil {
+                Logger.Info("json.Marshal failed: %v", err)
+                return err
+        }
 
+	notif := SubscriptionNotif{Id: s.req.Id, Version: seq, EventType: string(et), XApps: string(xappData)}
 	jsonData, err := json.Marshal(notif)
 	if err != nil {
 		Logger.Info("json.Marshal failed: %v", err)
@@ -118,6 +122,7 @@ func (sd *SubscriptionDispatcher) notify(xapps []Xapp, et EventType, s Subscript
 
 	// Execute the request with retry policy
 	return sd.retry(s, func() error {
+		Logger.Info("Posting notification to targetUrl=%s: %v", s.req.TargetUrl, notif)
 		resp, err := http.Post(s.req.TargetUrl, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {
 			Logger.Info("Posting to subscription failed: %v", err)

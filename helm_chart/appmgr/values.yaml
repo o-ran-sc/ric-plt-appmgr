@@ -31,7 +31,7 @@ image:
 
   # xAppmanager Docker image name and tag
   name: appmgr
-  tag: 0.1.4
+  tag: 0.1.5
 
   #nameOverride: ""
   #fullnameOverride: ""
