@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1927eeb0_030a549e",
+        "filename": "Dockerfile.tests",
+        "patchSetId": 7
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-07-19T14:59:56Z",
+      "side": 1,
+      "message": "Should this be v2.12.3?",
+      "revId": "229b02e528aad7a4c1a188f34aab6d6391c1b65e",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "c511db83_f66b745c",
+        "filename": "container-tag.yaml",
+        "patchSetId": 7
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 1000031
+      },
+      "writtenOn": "2019-07-19T14:59:56Z",
+      "side": 1,
+      "message": "Latest version in the master seems to be 0.1.5",
+      "revId": "229b02e528aad7a4c1a188f34aab6d6391c1b65e",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    }
+  ]
+}
