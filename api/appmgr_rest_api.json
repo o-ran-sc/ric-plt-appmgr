@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "description": "This is a draft API for RIC appmgr",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "title": "RIC appmgr",
     "license": {
       "name": "Apache 2.0",
@@ -141,13 +141,13 @@
         }
       }
     },
-    "/xapps/list": {
+    "/xapps/search": {
         "get": {
         "summary": "Returns the list of all deployable xapps",
         "tags": [
           "xapp"
         ],
-        "operationId": "listAllXapps",
+        "operationId": "listAllDeployableXapps",
         "produces": [
           "application/json"
         ],
