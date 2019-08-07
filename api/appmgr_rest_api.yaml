@@ -97,12 +97,12 @@ paths:
             $ref: '#/definitions/AllDeployedXapps'
         '500':
           description: Internal error
-  '/xapps/list':
+  '/xapps/search':
     get:
       summary: Returns the list of all deployable xapps
       tags:
         - xapp
-      operationId: listAllXapps
+      operationId: listAllDeployableXapps
       produces:
         - application/json
       responses:
