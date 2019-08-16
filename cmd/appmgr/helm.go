@@ -112,7 +112,7 @@ func (h *Helm) Init() (out []byte, err error) {
 		return out, err
 	}
 
-	return HelmExec(strings.Join([]string{"init -c"}, ""))
+	return HelmExec(strings.Join([]string{"init -c --skip-refresh"}, ""))
 }
 
 func (h *Helm) AddRepo() (out []byte, err error) {
