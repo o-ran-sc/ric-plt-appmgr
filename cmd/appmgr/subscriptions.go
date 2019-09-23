@@ -36,6 +36,15 @@ func (sd *SubscriptionDispatcher) Initialize() {
 }
 
 func (sd *SubscriptionDispatcher) Add(sr SubscriptionReq) (resp SubscriptionResp) {
+	// Skip duplicates
+	for v := range sd.subscriptions.IterBuffered() {
+		r := v.Val.(Subscription).req
+		if r.TargetUrl == sr.TargetUrl && r.EventType == sr.EventType {
+			Logger.Info("Similar subscription already exists!")
+			return
+		}
+	}
+
 	key := ksuid.New().String()
 	resp = SubscriptionResp{key, 0, sr.EventType}
 	sr.Id = key
@@ -108,10 +117,10 @@ func (sd *SubscriptionDispatcher) notifyClients(xapps []Xapp, et EventType) {
 
 func (sd *SubscriptionDispatcher) notify(xapps []Xapp, et EventType, s Subscription, seq int) error {
 	xappData, err := json.Marshal(xapps)
-        if err != nil {
-                Logger.Info("json.Marshal failed: %v", err)
-                return err
-        }
+	if err != nil {
+		Logger.Info("json.Marshal failed: %v", err)
+		return err
+	}
 
 	notif := SubscriptionNotif{Id: s.req.Id, Version: seq, EventType: string(et), XApps: string(xappData)}
 	jsonData, err := json.Marshal(notif)

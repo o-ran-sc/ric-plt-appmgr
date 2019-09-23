@@ -72,7 +72,7 @@ func (cm *ConfigMap) UploadConfig() (cfg []XAppConfig) {
 		}
 
 		c := XAppConfig{
-			Metadata: ConfigMetadata{Name: name, Namespace: ns, ConfigName: name + "-appconfig"},
+			Metadata: ConfigMetadata{Name: name, Namespace: ns, ConfigName: cm.GetConfigMapName(name, ns)},
 		}
 
 		err := cm.ReadSchema(name, &c)
@@ -162,7 +162,7 @@ func (cm *ConfigMap) ApplyConfigMap(r XAppConfig, action string) (err error) {
 
 func (cm *ConfigMap) GetConfigMap(m XappDeploy, c *interface{}) (err error) {
 	if m.ConfigName == "" {
-		m.ConfigName = m.Name + "-appconfig"
+		m.ConfigName = cm.GetConfigMapName(m.Name, m.Namespace)
 	}
 	return cm.ReadConfigMap(m.ConfigName, m.Namespace, c)
 }
@@ -196,7 +196,7 @@ func (cm *ConfigMap) DeleteConfigMap(r XAppConfig) (c interface{}, err error) {
 
 func (cm *ConfigMap) PurgeConfigMap(m XappDeploy) (c interface{}, err error) {
 	if m.ConfigName == "" {
-		m.ConfigName = m.Name + "-appconfig"
+		m.ConfigName = cm.GetConfigMapName(m.Name, m.Namespace)
 	}
 	md := ConfigMetadata{Name: m.Name, Namespace: m.Namespace, ConfigName: m.ConfigName}
 
@@ -205,7 +205,7 @@ func (cm *ConfigMap) PurgeConfigMap(m XappDeploy) (c interface{}, err error) {
 
 func (cm *ConfigMap) RestoreConfigMap(m XappDeploy, c interface{}) (err error) {
 	if m.ConfigName == "" {
-		m.ConfigName = m.Name + "-appconfig"
+		m.ConfigName = cm.GetConfigMapName(m.Name, m.Namespace)
 	}
 	md := ConfigMetadata{Name: m.Name, Namespace: m.Namespace, ConfigName: m.ConfigName}
 	time.Sleep(time.Duration(10 * time.Second))
@@ -293,7 +293,7 @@ func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 	log.Println("Fetching tx/rx messages for: ", name)
 
 	ns := cm.GetNamespace("")
-	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s-appconfig", ns, name)
+	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, cm.GetConfigMapName(name, ns))
 	out, err := KubectlExec(args)
 	if err != nil {
 		return
@@ -314,6 +314,10 @@ func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 	}
 
 	return
+}
+
+func (cm *ConfigMap) GetConfigMapName(xappName, namespace string) (string) {
+	return " configmap-" + namespace + "-" + xappName + "-appconfig"
 }
 
 func (cm *ConfigMap) GetNamespace(ns string) string {

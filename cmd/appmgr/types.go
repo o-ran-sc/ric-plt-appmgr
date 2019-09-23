@@ -123,7 +123,7 @@ type SubscriptionNotif struct {
 	Id        string `json:"id"`
 	Version   int    `json:"version"`
 	EventType string `json:"eventType"`
-	XApps  	  string `json:"xApps"`
+	XApps     string `json:"xApps"`
 }
 
 type Subscription struct {

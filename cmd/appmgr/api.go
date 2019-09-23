@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"net/http"
+	"time"
 )
 
 // API functions
@@ -179,6 +180,13 @@ func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	for i := 0; i < 3; i++ {
+		if xapp, err = m.helm.Status(xapp.Name); xapp.Instances != nil {
+			break;
+		}
+		time.Sleep(time.Duration(5) * time.Second)
 	}
 
 	respondWithJSON(w, http.StatusCreated, xapp)

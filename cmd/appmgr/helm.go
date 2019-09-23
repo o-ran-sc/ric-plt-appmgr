@@ -274,13 +274,16 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 }
 
 func (h *Helm) GetEndpointInfo(name string) (ip string, port int) {
-	args := fmt.Sprintf(" get endpoints -o=jsonpath='{.subsets[*].addresses[*].ip}' %s -n %s", name, h.cm.GetNamespace(""))
+	ns := h.cm.GetNamespace("")
+	args := fmt.Sprintf(" get endpoints -o=jsonpath='{.subsets[*].addresses[*].ip}' service-%s-%s-rmr -n %s", ns, name, ns)
 	out, err := KubectlExec(args)
 	if err != nil {
 		return
 	}
+	Logger.Info("Endpoint IP address of %s: %s", name, string(out))
 
-	return string(out), 4560
+	// "service-<namespace>-<chartname>-rmr.<namespace>"
+	return "service-" + ns + "-" + name + "-rmr." + ns, 4560
 }
 
 func (h *Helm) GetNames(out string) (names []string, err error) {

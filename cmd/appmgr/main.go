@@ -23,7 +23,7 @@ var Logger *Log
 
 func main() {
 	Logger = NewLogger("xapp-manager")
-
+	Logger.SetMdc("appmgr", "0.1.9")
 	loadConfig()
 
 	m := XappManager{}
