@@ -17,11 +17,17 @@
 ==================================================================================
 */
 
-package main
+package helm
 
 import (
+	"os"
 	"reflect"
+	"strconv"
 	"testing"
+
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/util"
 )
 
 var helmStatusOutput = `
@@ -69,28 +75,42 @@ Releases:
   Status: DEPLOYED
   Updated: Sun Mar 24 07:17:00 2019`
 
-var h = Helm{}
+// Test cases
+func TestMain(m *testing.M) {
+	appmgr.Init()
+	appmgr.Logger.SetLevel(0)
+
+	code := m.Run()
+	os.Exit(code)
+}
 
 func TestHelmStatus(t *testing.T) {
-	h.SetCM(&ConfigMap{})
-	KubectlExec = func(args string) (out []byte, err error) {
+	//NewHelm().SetCM(&ConfigMap{})
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte("10.102.184.212"), nil
 	}
-	xapp, err := h.ParseStatus("dummy-xapp", helmStatusOutput)
+	xapp, err := NewHelm().ParseStatus("dummy-xapp", helmStatusOutput)
 	if err != nil {
 		t.Errorf("Helm install failed: %v", err)
 	}
-
 	x := getXappData()
 	xapp.Version = "1.0"
 
-	if !reflect.DeepEqual(xapp, x) {
-		t.Errorf("\n%v \n%v", xapp, x)
+	if *x.Name != *xapp.Name || x.Status != xapp.Status || x.Version != xapp.Version {
+		t.Errorf("\n%v \n%v", *xapp.Name, *x.Name)
+	}
+
+	if *x.Instances[0].Name != *xapp.Instances[0].Name || x.Instances[0].Status != xapp.Instances[0].Status {
+		t.Errorf("\n1:%v 2:%v", *x.Instances[0].Name, *xapp.Instances[0].Name)
+	}
+
+	if x.Instances[0].IP != xapp.Instances[0].IP || x.Instances[0].Port != xapp.Instances[0].Port {
+		t.Errorf("\n1:%v 2:%v", x.Instances[0].IP, xapp.Instances[0].IP)
 	}
 }
 
 func TestHelmLists(t *testing.T) {
-	names, err := h.GetNames(helListOutput)
+	names, err := NewHelm().GetNames(helListOutput)
 	if err != nil {
 		t.Errorf("Helm status failed: %v", err)
 	}
@@ -101,44 +121,61 @@ func TestHelmLists(t *testing.T) {
 }
 
 func TestAddTillerEnv(t *testing.T) {
-	if addTillerEnv() != nil {
+	if NewHelm().AddTillerEnv() != nil {
 		t.Errorf("TestAddTillerEnv failed!")
 	}
 }
 
 func TestGetInstallArgs(t *testing.T) {
-	x := XappDeploy{Name: "dummy-xapp", Namespace: "ricxapp"}
+	name := "dummy-xapp"
+	x := models.XappDescriptor{XappName: &name, Namespace: "ricxapp"}
 
-	expectedArgs := "install helm-repo/dummy-xapp --name=dummy-xapp  --namespace=ricxapp"
-	if args := getInstallArgs(x, false); args != expectedArgs {
+	expectedArgs := "install helm-repo/dummy-xapp  --namespace=ricxapp --name=dummy-xapp"
+	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
-	x.ImageRepo = "localhost:5000"
-	expectedArgs = expectedArgs + " --set global.repository=" + "localhost:5000"
-	if args := getInstallArgs(x, false); args != expectedArgs {
+	x.HelmVersion = "1.2.3"
+	expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=dummy-xapp"
+	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
-	x.ServiceName = "xapp"
-	expectedArgs = expectedArgs + " --set ricapp.service.name=" + "xapp"
-	if args := getInstallArgs(x, false); args != expectedArgs {
-		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
-	}
-
-	x.ServiceName = "xapp"
-	expectedArgs = expectedArgs + " --set ricapp.appconfig.override=dummy-xapp-appconfig"
-	if args := getInstallArgs(x, true); args != expectedArgs {
+	x.ReleaseName = "ueec-xapp"
+	expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=ueec-xapp"
+	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 }
 
-func getXappData() (x Xapp) {
-	x = generateXapp("dummy-xapp", "deployed", "1.0", "dummy-xapp-8984fc9fd-bkcbp", "running", "10.102.184.212", "4560")
-	x.Instances = append(x.Instances, x.Instances[0])
-	x.Instances = append(x.Instances, x.Instances[0])
-	x.Instances[1].Name = "dummy-xapp-8984fc9fd-l6xch"
-	x.Instances[2].Name = "dummy-xapp-8984fc9fd-pp4hg"
+func getXappData() (x models.Xapp) {
+	//name1 := "dummy-xapp-8984fc9fd-l6xch"
+	//name2 := "dummy-xapp-8984fc9fd-pp4hg"
+	x = generateXapp("dummy-xapp", "deployed", "1.0", "dummy-xapp-8984fc9fd-bkcbp", "running", "service-ricxapp-dummy-xapp-rmr.ricxapp", "4560")
+	//x.Instances = append(x.Instances, x.Instances[0])
+	//x.Instances = append(x.Instances, x.Instances[0])
+	//x.Instances[1].Name = &name1
+	//x.Instances[2].Name = &name2
 
 	return x
+}
+
+func generateXapp(name, status, ver, iname, istatus, ip, port string) (x models.Xapp) {
+	x.Name = &name
+	x.Status = status
+	x.Version = ver
+	p, _ := strconv.Atoi(port)
+	var msgs appmgr.MessageTypes
+
+	instance := &models.XappInstance{
+		Name:       &iname,
+		Status:     istatus,
+		IP:         ip,
+		Port:       int64(p),
+		TxMessages: msgs.TxMessages,
+		RxMessages: msgs.RxMessages,
+	}
+	x.Instances = append(x.Instances, instance)
+
+	return
 }

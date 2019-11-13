@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   description: This is a draft API for RIC appmgr
-  version: 0.1.7
+  version: 0.2.0
   title: RIC appmgr
   license:
     name: Apache 2.0
@@ -42,38 +42,11 @@ paths:
       produces:
         - application/json
       parameters:
-        - name: xAppInfo
+        - name: XappDescriptor
           in: body
-          description: xApp information
+          description: xApp deployment info
           schema:
-            type: object
-            required:
-              - name
-            properties:
-              name:
-                type: string
-                description: Name of the xApp.
-                example: xapp-dummy
-              configName:
-                type: string
-                description: Name of the xApp configmap. Overrides the value given in Helm chart value file.
-                example: xapp-dummy-configmap
-              namespace:
-                type: string
-                description: Name of the namespace to which xApp is deployed. Overrides the value given in Helm chart value file.
-                example: ricxapps
-              serviceName:
-                type: string
-                description: Name of the service xApp is providing. Overrides the value given in Helm chart value file.
-                example: xapp-dummy-service
-              imageRepo:
-                type: string
-                description: Name of the docker repository xApp is located. Overrides the value given in Helm chart value file.
-                example: xapprepo
-              hostname:
-                type: string
-                description: Hostname for the pod. Used by messaging library. Overrides the value given in Helm chart value file.
-                example: xapp-dummy
+            $ref: '#/definitions/XappDescriptor'
       responses:
         '201':
           description: xApp successfully created
@@ -97,12 +70,12 @@ paths:
             $ref: '#/definitions/AllDeployedXapps'
         '500':
           description: Internal error
-  '/xapps/search':
+  /xapps/list:
     get:
       summary: Returns the list of all deployable xapps
       tags:
         - xapp
-      operationId: listAllDeployableXapps
+      operationId: listAllXapps
       produces:
         - application/json
       responses:
@@ -112,7 +85,7 @@ paths:
             $ref: '#/definitions/AllDeployableXapps'
         '500':
           description: Internal error
-  '/xapps/{xAppName}':
+  /xapps/{xAppName}:
     get:
       summary: Returns the status of a given xapp
       tags:
@@ -155,7 +128,7 @@ paths:
           description: Invalid xApp name supplied
         '500':
           description: Internal error
-  '/xapps/{xAppName}/instances/{xAppInstanceName}':
+  /xapps/{xAppName}/instances/{xAppInstanceName}:
     get:
       summary: Returns the status of a given xapp
       tags:
@@ -185,6 +158,62 @@ paths:
           description: Xapp not found
         '500':
           description: Internal error
+  /xapps/{xAppName}/instances/{xAppInstanceName}/start:
+    put:
+      summary: Start given xapp instance
+      tags:
+        - xapp
+      operationId: startXappInstanceByName
+      produces:
+        - application/json
+      parameters:
+        - name: xAppName
+          in: path
+          description: Name of xApp
+          required: true
+          type: string
+        - name: xAppInstanceName
+          in: path
+          description: Name of xApp instance to get information
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid name supplied
+        '404':
+          description: Xapp not found
+        '500':
+          description: Internal error
+  /xapps/{xAppName}/instances/{xAppInstanceName}/stop:
+    put:
+      summary: Stop given xapp instance
+      tags:
+        - xapp
+      operationId: stopXappInstanceByName
+      produces:
+        - application/json
+      parameters:
+        - name: xAppName
+          in: path
+          description: Name of xApp
+          required: true
+          type: string
+        - name: xAppInstanceName
+          in: path
+          description: Name of xApp instance to get information
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid name supplied
+        '404':
+          description: Xapp not found
+        '500':
+          description: Internal error
   /config:
     post:
       summary: Create xApp config
@@ -205,7 +234,7 @@ paths:
         '201':
           description: xApp config successfully created
           schema:
-            $ref: '#/definitions/XAppConfig'
+            $ref: '#/definitions/ConfigValidationErrors'
         '400':
           description: Invalid input
         '422':
@@ -231,7 +260,7 @@ paths:
         '200':
           description: xApp config successfully modified
           schema:
-            $ref: '#/definitions/XAppConfig'
+            $ref: '#/definitions/ConfigValidationErrors'
         '400':
           description: Invalid input
         '422':
@@ -268,6 +297,27 @@ paths:
           description: Successful deletion of xApp config
         '400':
           description: Invalid parameters supplied
+        '500':
+          description: Internal error
+  /config/{configName}:
+    get:
+      summary: Returns the configuration of a single xapp
+      tags:
+        - xapp
+      operationId: getXappConfig
+      produces:
+        - application/json
+      parameters:
+        - name: configName
+          in: path
+          description: Name of xApp
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful query of xApp config
+          schema:
+            $ref: '#/definitions/XAppConfig'
         '500':
           description: Internal error
   /subscriptions:
@@ -308,7 +358,7 @@ paths:
           description: successful query of subscriptions
           schema:
             $ref: '#/definitions/allSubscriptions'
-  '/subscriptions/{subscriptionId}':
+  /subscriptions/{subscriptionId}:
     get:
       summary: Returns the information of subscription
       tags:
@@ -384,7 +434,6 @@ definitions:
     type: array
     items:
       type: string
-      example: "xapp-dummy"
   AllDeployedXapps:
     type: array
     items:
@@ -396,7 +445,6 @@ definitions:
     properties:
       name:
         type: string
-        example: xapp-dummy
       status:
         type: string
         description: xapp status in the RIC
@@ -409,7 +457,6 @@ definitions:
           - deleting
       version:
         type: string
-        example: 1.2.3
       instances:
         type: array
         items:
@@ -421,7 +468,6 @@ definitions:
     properties:
       name:
         type: string
-        example: xapp-dummy-6cd577d9-4v255
       status:
         type: string
         description: xapp instance status
@@ -435,39 +481,70 @@ definitions:
           - crashLoopBackOff
       ip:
         type: string
-        example: 192.168.0.1
       port:
         type: integer
-        example: 32300
       txMessages:
         type: array
         items:
           type: string
-          example: ControlIndication
       rxMessages:
         type: array
         items:
           type: string
-          example: LoadIndication
+  XappDescriptor:
+    type: object
+    required:
+      - xappName
+    properties:
+      xappName:
+        type: string
+        description: Name of the xApp in helm chart
+      helmVersion:
+        type: string
+        description: The exact xapp helm chart version to install
+      releaseName:
+        type: string
+        description: Name of the xapp to be visible in Kubernetes
+      namespace:
+        type: string
+        description: Name of the namespace to which xApp is deployed. Overrides the value given in Helm chart value file.
+      overrideFile:
+        type: object
+        description: JSON string of override file for 'helm install' command
+  XappDescriptorList:
+    type: array
+    items:
+      $ref: '#/definitions/XappDescriptor'
   ConfigMetadata:
     type: object
     required:
       - name
-      - configName
-      - namespace
     properties:
       name:
         type: string
         description: Name of the xApp
-        example: xapp-dummy
       configName:
         type: string
         description: Name of the config map
-        example: xapp-dummy-config-map
       namespace:
         type: string
         description: Name of the namespace
-        example: ricxapp
+  ConfigValidationError:
+    type: object
+    required:
+      - field
+      - error
+    properties:
+      field:
+        type: string
+        description: Name of the parameter
+      error:
+        type: string
+        description: Description of validation error
+  ConfigValidationErrors:
+    type: array
+    items:
+      $ref: '#/definitions/ConfigValidationError'
   XAppConfig:
     type: object
     required:
@@ -487,7 +564,18 @@ definitions:
     type: array
     items:
       $ref: '#/definitions/XAppConfig'
-  subscriptionRequest:
+  EventType:
+    type: string
+    description: Event which is subscribed
+    enum:
+      - deployed
+      - undeployed
+      - created
+      - modified
+      - deleted
+      - restarted
+      - all
+  SubscriptionData:
     type: object
     required:
       - targetUrl
@@ -499,37 +587,29 @@ definitions:
         type: string
         example: 'http://localhost:11111/apps/webhook/'
       eventType:
-        type: string
-        description: Event which is subscribed
-        enum:
-          - created
-          - deleted
-          - all
+        $ref: '#/definitions/EventType'
       maxRetries:
         type: integer
         description: Maximum number of retries
-        example: 11
       retryTimer:
         type: integer
         description: Time in seconds to wait before next retry
-        example: 22
+  subscriptionRequest:
+    type: object
+    required:
+      - data
+    properties:
+      data:
+        $ref: '#/definitions/SubscriptionData'
   subscriptionResponse:
     type: object
     properties:
       id:
         type: string
-        example: 1ILBltYYzEGzWRrVPZKmuUmhwcc
       version:
         type: integer
-        example: 2
       eventType:
-        type: string
-        description: Event which is subscribed
-        enum:
-          - created
-          - deleted
-          - updated
-          - all
+        $ref: '#/definitions/EventType'
   allSubscriptions:
     type: array
     items:
@@ -539,41 +619,16 @@ definitions:
     properties:
       id:
         type: string
-        example: 1ILBltYYzEGzWRrVPZKmuUmhwcc
-      targetUrl:
-        type: string
-        example: 'http://localhost:11111/apps/webhook/'
-      eventType:
-        type: string
-        description: Event which is subscribed
-        enum:
-          - created
-          - deleted
-          - updated
-          - all
-      maxRetries:
-        type: integer
-        description: Maximum number of retries
-        example: 11
-      retryTimer:
-        type: integer
-        description: Time in seconds to wait before next retry
-        example: 22
+      data:
+        $ref: '#/definitions/SubscriptionData'
   subscriptionNotification:
     type: object
     properties:
       id:
         type: string
-        example: 1ILBltYYzEGzWRrVPZKmuUmhwcc
       version:
         type: integer
-        example: 2
       eventType:
-        type: string
-        description: Event to be notified
-        enum:
-          - created
-          - deleted
-          - updated
+        $ref: '#/definitions/EventType'
       xApps:
         $ref: '#/definitions/AllDeployedXapps'

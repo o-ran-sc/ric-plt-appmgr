@@ -17,14 +17,18 @@
 ==================================================================================
 */
 
-package main
+package cm
 
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"os"
 	"reflect"
 	"testing"
+
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/util"
 )
 
 var helmSearchOutput = `
@@ -66,35 +70,35 @@ type ConfigSample struct {
 type MockedConfigMapper struct {
 }
 
-func (cm *MockedConfigMapper) ReadSchema(name string, c *XAppConfig) (err error) {
+func (cm *MockedConfigMapper) ReadSchema(name string, c *models.XAppConfig) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) UploadConfig() (cfg []XAppConfig) {
+func (cm *MockedConfigMapper) UploadConfig() (cfg []models.XAppConfig) {
 	return
 }
 
-func (cm *MockedConfigMapper) CreateConfigMap(r XAppConfig) (errList []CMError, err error) {
+func (cm *MockedConfigMapper) CreateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) GetConfigMap(m XappDeploy, c *interface{}) (err error) {
+func (cm *MockedConfigMapper) GetConfigMap(m models.XappDescriptor, c *interface{}) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) UpdateConfigMap(r XAppConfig) (errList []CMError, err error) {
+func (cm *MockedConfigMapper) UpdateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) DeleteConfigMap(r XAppConfig) (c interface{}, err error) {
+func (cm *MockedConfigMapper) DeleteConfigMap(r models.XAppConfig) (c interface{}, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) PurgeConfigMap(m XappDeploy) (c interface{}, err error) {
+func (cm *MockedConfigMapper) PurgeConfigMap(m models.XappDescriptor) (c interface{}, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) RestoreConfigMap(m XappDeploy, c interface{}) (err error) {
+func (cm *MockedConfigMapper) RestoreConfigMap(m models.XappDescriptor, c interface{}) (err error) {
 	return
 }
 
@@ -102,7 +106,7 @@ func (cm *MockedConfigMapper) ReadConfigMap(name string, ns string, c *interface
 	return
 }
 
-func (cm *MockedConfigMapper) ApplyConfigMap(r XAppConfig, action string) (err error) {
+func (cm *MockedConfigMapper) ApplyConfigMap(r models.XAppConfig, action string) (err error) {
 	return
 }
 
@@ -110,7 +114,7 @@ func (cm *MockedConfigMapper) FetchChart(name string) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) GetMessages(name string) (msgs MessageTypes) {
+func (cm *MockedConfigMapper) GetMessages(name string) (msgs appmgr.MessageTypes) {
 	return
 }
 
@@ -123,200 +127,186 @@ func (cm *MockedConfigMapper) GetNamesFromHelmRepo() (names []string) {
 }
 
 // Test cases
+func TestMain(m *testing.M) {
+	appmgr.Init()
+	appmgr.Logger.SetLevel(0)
+
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestGetMessages(t *testing.T) {
-	cm := ConfigMap{}
-	expectedMsgs := MessageTypes{
+	expectedMsgs := appmgr.MessageTypes{
 		TxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
 		RxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
 	}
 
-	KubectlExec = func(args string) (out []byte, err error) {
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(kubectlConfigmapOutput), nil
 	}
 
-	result := cm.GetMessages("dummy-xapp")
+	result := NewCM().GetMessages("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {
 		t.Errorf("TestGetMessages failed: expected: %v, got: %v", expectedMsgs, result)
 	}
 }
 
 func TestHelmNamespace(t *testing.T) {
-	cm := ConfigMap{}
-
-	if cm.GetNamespace("pltxapp") != "pltxapp" {
+	if NewCM().GetNamespace("pltxapp") != "pltxapp" {
 		t.Errorf("getNamespace failed!")
 	}
 
-	if cm.GetNamespace("") != "default" {
+	if NewCM().GetNamespace("") != "ricxapp" {
 		t.Errorf("getNamespace failed!")
 	}
 }
 
 func TestFetchChartFails(t *testing.T) {
-	cm := ConfigMap{}
-
-	if cm.FetchChart("dummy-xapp") == nil {
+	if NewCM().FetchChart("dummy-xapp") == nil {
 		t.Errorf("TestFetchChart failed!")
 	}
 }
 
 func TestFetchChartSuccess(t *testing.T) {
-	cm := ConfigMap{}
-
-	HelmExec = func(args string) (out []byte, err error) {
+	util.HelmExec = func(args string) (out []byte, err error) {
 		return
 	}
 
-	if cm.FetchChart("dummy-xapp") != nil {
+	if NewCM().FetchChart("dummy-xapp") != nil {
 		t.Errorf("TestFetchChart failed!")
 	}
 }
 
 func TestGetNamesFromHelmRepoSuccess(t *testing.T) {
-	cm := ConfigMap{}
 	expectedResult := []string{"anr", "appmgr", "dualco", "reporter", "uemgr"}
-	HelmExec = func(args string) (out []byte, err error) {
+	util.HelmExec = func(args string) (out []byte, err error) {
 		return []byte(helmSearchOutput), nil
 	}
 
-	names := cm.GetNamesFromHelmRepo()
+	names := NewCM().GetNamesFromHelmRepo()
 	if !reflect.DeepEqual(names, expectedResult) {
 		t.Errorf("GetNamesFromHelmRepo failed: expected %v, got %v", expectedResult, names)
 	}
 }
 
 func TestGetNamesFromHelmRepoFailure(t *testing.T) {
-	cm := ConfigMap{}
 	expectedResult := []string{}
-	HelmExec = func(args string) (out []byte, err error) {
+	util.HelmExec = func(args string) (out []byte, err error) {
 		return []byte(helmSearchOutput), errors.New("Command failed!")
 	}
 
-	names := cm.GetNamesFromHelmRepo()
+	names := NewCM().GetNamesFromHelmRepo()
 	if names != nil {
 		t.Errorf("GetNamesFromHelmRepo failed: expected %v, got %v", expectedResult, names)
 	}
 }
 
 func TestApplyConfigMapSuccess(t *testing.T) {
-	cm := ConfigMap{}
-	m := ConfigMetadata{Name: "dummy-xapp", Namespace: "ricxapp"}
+	name := "dummy-xapp"
+	m := models.ConfigMetadata{Name: &name, Namespace: "ricxapp"}
 	s := ConfigSample{5, "localhost"}
 
-	KubectlExec = func(args string) (out []byte, err error) {
-		log.Println("TestApplyConfigMapSuccess: ", args)
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(`{"logger": {"level": 2}}`), nil
 	}
 
-	err := cm.ApplyConfigMap(XAppConfig{Metadata: m, Configuration: s}, "create")
+	err := NewCM().ApplyConfigMap(models.XAppConfig{Metadata: &m, Config: s}, "create")
 	if err != nil {
 		t.Errorf("ApplyConfigMap failed: %v", err)
 	}
 }
 
 func TestRestoreConfigMapSuccess(t *testing.T) {
-	cm := ConfigMap{}
-	m := XappDeploy{Name: "dummy-xapp", Namespace: "ricxapp"}
+	name := "dummy-xapp"
+	m := models.XappDescriptor{XappName: &name, Namespace: "ricxapp"}
 	s := ConfigSample{5, "localhost"}
 
-	KubectlExec = func(args string) (out []byte, err error) {
-		log.Println("TestRestoreConfigMapSuccess: ", args)
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(`{"logger": {"level": 2}}`), nil
 	}
 
-	err := cm.RestoreConfigMap(m, s)
+	err := NewCM().RestoreConfigMap(m, s)
 	if err != nil {
 		t.Errorf("RestoreConfigMap failed: %v", err)
 	}
 }
 
 func TestDeleteConfigMapSuccess(t *testing.T) {
-	cm := ConfigMap{}
-
-	HelmExec = func(args string) (out []byte, err error) {
+	util.HelmExec = func(args string) (out []byte, err error) {
 		return []byte("ok"), nil
 	}
 
-	KubectlExec = func(args string) (out []byte, err error) {
-		log.Println("TestDeleteConfigMapSuccess: ", args)
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(`{"logger": {"level": 2}}`), nil
 	}
 
-	c, err := cm.DeleteConfigMap(XAppConfig{})
+	validationErrors, err := NewCM().DeleteConfigMap(models.ConfigMetadata{})
 	if err != nil {
-		t.Errorf("DeleteConfigMap failed: %v -> %v", err, c)
+		t.Errorf("DeleteConfigMap failed: %v -> %v", err, validationErrors)
 	}
 }
 
 func TestPurgeConfigMapSuccess(t *testing.T) {
-	cm := ConfigMap{}
-
-	HelmExec = func(args string) (out []byte, err error) {
+	util.HelmExec = func(args string) (out []byte, err error) {
 		return []byte("ok"), nil
 	}
 
-	KubectlExec = func(args string) (out []byte, err error) {
+	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(`{"logger": {"level": 2}}`), nil
 	}
 
-	c, err := cm.PurgeConfigMap(XappDeploy{})
+	name := "dummy-xapp"
+	validationErrors, err := NewCM().PurgeConfigMap(models.XappDescriptor{XappName: &name})
 	if err != nil {
-		t.Errorf("PurgeConfigMap failed: %v -> %v", err, c)
+		t.Errorf("PurgeConfigMap failed: %v -> %v", err, validationErrors)
 	}
 }
 
 func TestCreateConfigMapFails(t *testing.T) {
-	cm := ConfigMap{}
-
-	c, err := cm.CreateConfigMap(XAppConfig{})
+	name := "dummy-xapp"
+	validationErrors, err := NewCM().CreateConfigMap(models.XAppConfig{Metadata: &models.ConfigMetadata{Name: &name}})
 	if err == nil {
-		t.Errorf("CreateConfigMap failed: %v -> %v", err, c)
+		t.Errorf("CreateConfigMap failed: %v -> %v", err, validationErrors)
 	}
 }
 
 func TestUpdateConfigMapFails(t *testing.T) {
-	cm := ConfigMap{}
-
-	c, err := cm.UpdateConfigMap(XAppConfig{})
+	name := "dummy-xapp"
+	validationErrors, err := NewCM().UpdateConfigMap(models.XAppConfig{Metadata: &models.ConfigMetadata{Name: &name}})
 	if err == nil {
-		t.Errorf("CreateConfigMap failed: %v -> %v", err, c)
+		t.Errorf("CreateConfigMap failed: %v -> %v", err, validationErrors)
 	}
 }
 
 func TestValidationSuccess(t *testing.T) {
-	cm := ConfigMap{}
 	var d interface{}
 	var cfg map[string]interface{}
-
 	err := json.Unmarshal([]byte(`{"local": {"host": ":8080"}, "logger": {"level": 3}}`), &cfg)
 
-	err = cm.ReadFile("./test/schema.json", &d)
+	err = NewCM().ReadFile("../../test/schema.json", &d)
 	if err != nil {
 		t.Errorf("ReadFile failed: %v -> %v", err, d)
 	}
 
-	feedback, err := cm.doValidate(d, cfg)
+	feedback, err := NewCM().doValidate(d, cfg)
 	if err != nil {
 		t.Errorf("doValidate failed: %v -> %v", err, feedback)
 	}
 }
 
 func TestValidationFails(t *testing.T) {
-	cm := ConfigMap{}
 	var d interface{}
 	var cfg map[string]interface{}
-
 	err := json.Unmarshal([]byte(`{"local": {"host": ":8080"}, "logger": {"level": "INVALID"}}`), &cfg)
 
-	err = cm.ReadFile("./test/schema.json", &d)
+	err = NewCM().ReadFile("../../test/schema.json", &d)
 	if err != nil {
 		t.Errorf("ConfigMetadata failed: %v -> %v", err, d)
 	}
 
-	feedback, err := cm.doValidate(d, cfg)
+	feedback, err := NewCM().doValidate(d, cfg)
 	if err == nil {
 		t.Errorf("doValidate should faile but didn't: %v -> %v", err, feedback)
 	}
-
-	log.Println("Feedbacks: ", feedback)
+	appmgr.Logger.Debug("Feedbacks: %v", feedback)
 }

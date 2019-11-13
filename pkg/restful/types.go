@@ -17,40 +17,33 @@
 ==================================================================================
 */
 
-package main
+package restful
 
 import (
-	"flag"
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
-	"log"
+	"net/http"
+
+	cfgmap "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/cm"
+	helmer "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/helm"
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi/operations"
+	resthook "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/resthooks"
 )
 
-const DEFAULT_CONFIG_FILE = "config/appmgr.yaml"
-
-func parseCmd() string {
-	var fileName *string
-	fileName = flag.String("f", DEFAULT_CONFIG_FILE, "Specify the configuration file.")
-	flag.Parse()
-
-	return *fileName
+type CmdOptions struct {
+	hostAddr      *string
+	helmHost      *string
+	helmChartPath *string
 }
 
-func loadConfig() {
-	viper.SetConfigFile(parseCmd())
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
-	}
-	log.Printf("Using config file: %s\n", viper.ConfigFileUsed())
-
-	// Watch for config file changes and re-read data ...
-	watch()
+type Resource struct {
+	Method      string
+	Url         string
+	HandlerFunc http.HandlerFunc
 }
 
-func watch() {
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Println("config file changed ", e.Name)
-	})
+type Restful struct {
+	api   *operations.AppManagerAPI
+	helm  *helmer.Helm
+	cm    *cfgmap.CM
+	rh    *resthook.Resthook
+	ready bool
 }

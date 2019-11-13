@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/perl -w
 #
 # Copyright (c) 2019 AT&T Intellectual Property.
 # Copyright (c) 2019 Nokia.
@@ -19,26 +19,34 @@
 #############################
 # Simple cli for xapp manager
 #
-# In addition to standard shell tools, requires packages "curl" and
+# In addition to standard shell tools, requires basic Perl installation
+# (Ubuntu package "perl-base", installed by default), packages "curl" and
 # "yajl-tools" (the second provides json_reformat on Ubuntu; on Red Hat-style
 # distributions install "yajl" instead).
 #
-myname=appmgrcli
+use strict;
+use Getopt::Long;
+use Fcntl;
 
-usage() {
-  cat <<EOF1
-usage: $myname [-h host] [-p port] [-v] command params...
-- command is one of deploy, undeploy, status, subscriptions, health, help
+my $myname="appmgrcli";
+
+sub usage {
+    print <<"EOF1";
+usage: $myname [-h host] [-p port] [-v] [-c curlprog] command params...
+- command is deploy, undeploy, status, subscriptions, health, config, help
 - (abbreviations dep, undep, stat, subs, heal allowed)
 - Parameters of the commands that may have parameters:
 -- deploy: name of the xapp to deploy
+---- Deployment parameters come from the Help chart but the following can be
+---- overridden by option with the same name (for example --configName=cname):
+----- helmVersion ReleaseName namespace podHost (host of pods).
 -- undeploy: name of the xapp to undeploy
 -- status:
 ---- No parameters: Lists information about all deployed xapps
 ---- xapp name as parameter: Prints information about the given xapp
 ---- xapp name and instance: Lists information about the given instance only
 -- subscriptions is followed by sub-command list, add, delete, or modify
----(abbreviations del and mod for delete and modify are allowed):
+--- (abbreviations del and mod for delete and modify are allowed):
 ---- list without parameters lists all subscriptions
 ---- list with subscription id prints that subscription
 ---- add URL eventType maxRetry retryTimer
@@ -50,356 +58,997 @@ usage: $myname [-h host] [-p port] [-v] command params...
 --------the rest of the parameters are like in add
 ---- delete id
 ------- id is the subscription id to delete (find out with the list command)
+-- config is followed by sub-command list, add, delete, or modify
+--- (abbreviations del and mod for delete and modify are allowed):
+---- list (no pars)
+------ lists the configuration of all xapps
+---- add jsonfile
+------ Creates xapp configuration. the jsonfile must contain all data (see API)
+---- add name configName namespace configSchemaFile configDataFile
+------ Creates xapp configuration, but unlike in the 1-parameter form,
+------ Xapp name, config map name and namespace are separate parameters.
+------ The other data come from JSON files.
+---- modify
+------ Modifies existing configuration. Same parameters (1 or 5) as in add.
+---- delete name configName namespace
+------ Deletes the configuration identified by the parameters.
+--------------------------------------------------------------
 - Default values for host and port can be set in environment
 - variables APPMGR_HOST and APPMGR_PORT
 - Option -v sets verbose mode.
+- Option -c overrides the used curl program name ("curl" by default).
+- Exit code is 0 for success, 1 for any kind of failure.
 EOF1
+    exit 0;
+}
+
+sub helphint {
+    print "run $myname help (or --help) for instructions\n";
 }
 
 # Defaults
 
-host=localhost
-port=8080
-verbose=0
+my $host="localhost";
+my $port=8080;
+my $verbose=0;
+my $showhelp = 0;
+
+# API URLs
+
+my $base="/ric/v1";
+my $base_xapps="$base/xapps";
+my $base_health="$base/health";
+my $base_subs="$base/subscriptions";
+my $base_config="$base/config";
 
 # Check for environment override
-if [ "x$APPMGR_HOST" != "x" ]; then
-    host="$APPMGR_HOST"
-fi
-if [ "x$APPMGR_PORT" != "x" ]; then
-    port="$APPMGR_PORT"
-fi
+if (exists $ENV{"APPMGR_HOST"}) {
+   $host=$ENV{"APPMGR_HOST"};
+}
+if (exists $ENV{"APPMGR_PORT"}) {
+    $port=$ENV{"APPMGR_PORT"};
+}
 
-# Proper shell option parsing:
-while getopts  "h:p:v" flag
-do
-  # Curiously, getopts does not guard against an argument-requiring option
-  # eating the next option. It also does not handle the -- convention.
-  # Here is how to fix that.
-  if [ "X$OPTARG" = 'X--' ]; then
-    break # Explicit end of options
-  fi
-  if expr -- "$OPTARG" : '-.*' > /dev/null ; then
-    echo $myname: Option -$flag has no required value, or value begins with -,
-    echo - which is disallowed.
-    usage
-    exit 1
-  fi
-  case $flag in
-  (h) host="$OPTARG"
-      ;;
-  (p) port="$OPTARG"
-      ;;
-  (v) verbose=1
-      ;;
-  (*)
-      echo $myname: Bad option letter or required option argument missing.
-      usage
-      exit 1
-      ;;
-  esac
-done
-# Get rid of the option part
-shift $((OPTIND-1))
+# Overrides for some deploy parameters
 
-if [ $verbose = 1 ]; then
-  echo "host = $host"
-  echo "port = $port"
-fi
+my $configName = "";
+my $namespace = "ricxapp";
+my $releaseName = "";
+my $helmVersion = "0.0.1";
+my $overrideFile = "";
+my $podHost = "";
 
-# Verify command
+# The curl command can be overridden for testing with a dummy.
 
-case $1 in
-  (deploy|dep)
-    cmd=deploy
-    ;;
-  (undeploy|undep)
-    cmd=undeploy
-    ;;
-  (status|stat)
-    cmd=status
-    ;;
-  (subscriptions|subs)
-    cmd=subscriptions
-    ;;
-  (health|heal)
-    cmd=health
-    ;;
-  (config|upload)
-    cmd=config
-    ;;
-  (help)
-    usage
-    exit 0
-    ;;
-  (*)
-    if [ "x$1" = "x" ]; then
-     echo "$myname: Missing command"
-    else
-     echo "$myname: Unrecognized command $1"
-    fi
-    usage
-    exit 1
-    ;;
-esac
+my $curl = "curl";
 
-if [ $verbose = 1 ]; then
-  echo "Command $cmd params=$2"
-fi
+Getopt::Long::Configure("no_auto_abbrev", "permute");
+if (! GetOptions("h=s" => \$host,
+                 "p=i" => \$port,
+                 "c=s" => \$curl,
+                 "ConfigName=s" => \$configName,
+                 "Namespace=s" => \$namespace,
+                 "ReleaseName=s" => \$releaseName,
+                 "HelmVersion=s" => \$helmVersion,
+                 "OverrideFile=s" => \$overrideFile,
+                 "podHost=s" => \$podHost,
+                 "help" => \$showhelp,
+                 "v" => \$verbose)) {
+    print "$myname: Error in options\n";
+    helphint();
+    exit 1;
+}
 
-errfile=`mktemp /tmp/appmgr_e.XXXXXXXXXX`
-resultfile=`mktemp /tmp/appmgr_r.XXXXXXXXXX`
+if ($showhelp) {
+    usage();
+    exit 0;
+}
+
+if ($verbose) {
+    print "host = $host\n";
+    print "port = $port\n";
+    print "ConfigName = $configName\n";
+    print "Namespace = $namespace\n";
+    print "ReleaseName = $releaseName\n";
+    print "HelmVersion = $helmVersion\n";
+     print "OverrideFile = $overrideFile\n";
+    print "podHost = $podHost\n";
+    for (my $idx = 0; $idx <= $#ARGV; ++$idx) {
+        print "\$ARGV[$idx] = $ARGV[$idx]\n";
+    }
+}
+
+# Verify command and call handler function
+
+my %commands = (
+    "deploy" => \&do_deploy,
+    "dep" => \&do_deploy,
+    "undeploy" => \&do_undeploy,
+    "undep" => \&do_undeploy,
+    "status" => \&do_status,
+    "stat" =>  \&do_status,
+    "subscriptions" => \&do_subscriptions,
+    "subs" =>  \&do_subscriptions,
+    "health" => \&do_health,
+    "heal" => \&do_health,
+    "config" => \&do_config,
+    "help" => \&usage
+);
+
+if ($#ARGV < 0) {
+    print "$myname: Missing command\n";
+    helphint();
+    exit 1;
+}
+
 # Variable status used for the return value of the whole script.
-status=0
+my $status = 0;
+
+my $command = $ARGV[0];
+shift;
+if (exists $commands{$command}) {
+    # Call the handler function with the rest of the command line
+    $commands{$command}(@ARGV);
+    exit $status; # Default exit. A handler can exit also if more convenient
+}
+print "$myname: Unrecognised command $command\n";
+helphint();
+exit 1;
+
+my $errfile;
+my $resultfile;
+
+
+sub make_temp_name($) {
+    my $tmpsuffix = "${$}${^T}";
+    return "$_[0].$tmpsuffix";
+}
+
+sub make_temps {
+    $errfile = make_temp_name("/tmp/appmgr_e");
+    $resultfile = make_temp_name("/tmp/appmgr_r");
+}
+
+sub remove_temps {
+    unlink ($errfile, $resultfile);
+}
+
+sub print_file($$) {
+    my $outputhandle = $_[0];
+    my $filename = $_[1];
+    my $buffer;
+    my $inhandle;
+    if (!open($inhandle, "<", $filename)) {
+        print $outputhandle "$myname print_file: cannot open $filename: $!\n";
+        return;
+    }
+    while (read($inhandle, $buffer, 4000) > 0) {
+        print $outputhandle $buffer;
+    }
+    close($inhandle);
+}
+
+# The HTTP protocol result code, filled in by rest().
+
+my $http_code = "";
+
+# Helper: Given a curl output file, extract the number from ##code line.
+# return ERROR if file cannot be opened, or "" if no code found.
+
+sub find_http_code($) {
+    my ($fh, $line, $code);
+    open($fh, "<", $_[0]) or return "ERROR";
+    while ($line = <$fh>) {
+        if ($line =~ /^##([0-9]+)/) {
+            return $1;
+        }
+    }
+    return "";
+}
 
 # Helper for command execution:
 # Do a rest call with "curl": $1 = method, $2 = path (without host and port
 # which come from variables), $3 data to POST if needed
-# returns 0 if OK, and any returned data is in $resultfile
-# else 1, and error message from curl is in $errfile, which is printed
-# before returning the 1.
-# Also sets $status to the return value.
+# returns true (1) if OK, and any returned data is in $resultfile
+# else 0, and error message from curl is in $errfile, which is printed
+# before returning the 0.
 #
 # On curl options: --silent --show-error disables progress bar, but allows
 # error messages. --connect-timeout 20 limits waiting for connection to
 # 20 seconds. In practice connection will succeed almost immediately,
 # or in the case of wrong address not at all.
+# To get the http code, using -w with format. The result comes at the end
+# of the output, so "decorating" it for easier filtering.
+# The code is put to global $http_code.
 #
-rest() {
-  local data
-  if [ "x$3" != "x" ]; then
-    data="--data $3"
-  fi
+sub rest($$_) {
+    my $method = $_[0];
+    my $path = $_[1];
+    my $data = $_[2] || "";
+    my $retval = 1;
+    my $http_status_file = make_temp_name("/tmp/appmgr_h");
 
-  if curl --silent --show-error --connect-timeout 20 --header "Content-Type: application/json" -X $1 -o $resultfile "http://${host}:${port}$2" $data 2> $errfile ;then
-    status=0
-  else
-    cat $errfile
-    status=1
-  fi
-  return $status
+    # This redirects stderr (fd 2) to $errfile, but saving normal stderr
+    # so that if can be restored.
+    open(OLDERR, ">&", \*STDERR) or die "Can't dup STDERR: $!";
+    open(ERRFILE, ">", $errfile) or die "open errorfile failed";
+    open(STDERR, ">&", \*ERRFILE) or die "Can't dup ERRFILE: $!";
+
+    # This redirects stdout (fd 1) to $http_status_file, but saving original
+    # so that if can be restored.
+    open(OLDSTDOUT, ">&", \*STDOUT) or die "Can't dup STDOUT: $!";
+    open(HTTP_STATUS_FILE, ">", $http_status_file) or die "open http status file failed";
+    open(STDOUT, ">&", \*HTTP_STATUS_FILE) or die "Can't dup HTTP_STATUS_FILE: $!";
+
+    my @args = ($curl, "--silent", "--show-error", "--connect-timeout", "20",
+                "--header", "Content-Type: application/json", "-X", $method,
+                "-o", $resultfile, "-w", '\n##%{http_code}\n',
+                "http://${host}:${port}${path}");
+    if ($data ne "") {
+        push(@args, "--data");
+        push(@args, $data);
+    }
+    if ($verbose) {
+        print OLDSTDOUT "Running: " . join(" ", @args) . "\n";
+    }
+    if (system(@args) == -1) {
+        print OLDSTDOUT "$myname: failed to execute @args\n";
+        $retval = 0;
+    }
+    elsif ($? & 127) {
+         printf OLDSTDOUT "$myname: child died with signal %d, %s coredump\n",
+             ($? & 127),  ($? & 128) ? 'with' : 'without';
+         $retval = 0;
+    }
+    else {
+        my $curl_exit_code = $? >> 8;
+        if ($curl_exit_code == 0) {
+            seek HTTP_STATUS_FILE, 0, 0; # Ensures flushing
+            $http_code = find_http_code($http_status_file);
+            if ($http_code eq "ERROR") {
+                print OLDSTDOUT "$myname: failed to open temp file $http_status_file\n";
+                $retval = 0;
+            }
+            elsif ($http_code eq "") {
+                print OLDSTDOUT "$myname: curl failed to provide HTTP code\n";
+                $retval = 0;
+            }
+            else {
+                if ($verbose) {
+                    print OLDSTDOUT "HTTP status code = $http_code\n";
+                }
+                $retval = 1; # Interaction OK from REST point of view
+            }
+        }
+        else {
+            print_file(\*OLDSTDOUT, $errfile);
+            $retval = 0;
+        }
+    }
+    open(STDOUT, ">&", \*OLDSTDOUT) or die "Can't dup OLDSTDOUT: $!";
+    open(STDERR, ">&", \*OLDERR) or die "Can't dup OLDERR: $!";
+    unlink($http_status_file);
+    return $retval;
 }
 
-remove_temps () {
-  rm -f $errfile $resultfile
+# Pretty-print a JSON file to stdout.
+# (currently uses json_reformat command)
+# Skips the ##httpcode line we make "curl"
+# add in order to get access to the HTTP status.
+
+sub print_json($) {
+    my $filename = $_[0];
+    my ($line, $inhandle, $outhandle);
+    if (!open($inhandle, "<", $filename)) {
+        print "$myname print_json: cannot open $filename: $!\n";
+        return;
+    }
+    if (!open($outhandle, "|json_reformat")) {
+        print "$myname print_json: cannot pipe to json_reformat: $!\n";
+        return;
+    }
+    while ($line = <$inhandle>) {
+        if (! ($line =~ /^##[0-9]+/)) {
+            print $outhandle $line;
+        }
+    }
+    close($outhandle);
+    close($inhandle);
 }
 
-# Execute command ($cmd guaranteed to be valid)
+# Append an entry like ","name":"value" to the first parameter, if "name"
+# names a variable with non-empty value.
+# Else returns the unmodified first parameter.
+
+sub append_option($$) {
+    my $result = $_[0];
+    my $var = $_[1];
+    my $val = eval("\$$var");
+    if ($val ne "") {
+        $result = "$result,\"$var\":\"$val\"";
+    }
+    return $result;
+}
+
+# Command handlers
 # Assumes the API currently implemented.
-# Functions for each command below (except health which is so simple).
+# Functions for each command below
 
-base=/ric/v1
-base_xapps=$base/xapps
-base_health=$base/health
-base_subs=$base/subscriptions
-base_config=$base/config
+# Deploy:
+# The deploy command has one mandatory parameter "name" in the API,
+# and several optional ones. Used mainly internally for testing, because
+# they all override Helm chart values:
+# "helmVersion": Helm chart version to be used
+# "releaseName": The releas name of xApp visible in K8s
+# "namespace":  Name of the namespace to which xApp is deployed.
+# "overrideFile":  The file content used to override values.yaml file
+# this host from the host the xapp manager is running in, we use the term
+# and variable name "podHost" here.
+# The options come from options (see GetOptions() call).
 
-do_deploy() {
-  if [ "x$1" != "x" ]; then
-    if rest POST $base_xapps \{\"name\":\"$1\"\} ; then
-      json_reformat < $resultfile
-    fi
-  else
-    echo Error: expected the name of xapp to deploy
-    status=1
-  fi
+sub do_deploy(@) {
+    my $name = $_[0] || "";
+    if ($name ne "") {
+        my $data = "{\"XappName\":\"$name\"";
+        $data = append_option($data, "helmVersion");
+        $data = append_option($data, "releaseName");
+        $data = append_option($data, "namespace");
+        $data = append_option($data, "overrideFile");
+        $data = $data . "}";
+        make_temps();
+        if (rest("POST", $base_xapps, $data)) {
+            if ($http_code eq "201") {
+                print_json $resultfile;
+                $status = 0;
+            }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID PARAMETERS SUPPLIED";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+    else {
+        print "$myname: Error: expected the name of xapp to deploy\n";
+        $status = 1;
+    }
 }
 
-do_undeploy() {
-  local urlpath
-
-  urlpath=$base_xapps
-  if [ "x$1" != "x" ]; then
-    urlpath="$urlpath/$1"
-    if rest DELETE $urlpath; then
-      # Currently appmgr returns an empty result if
-      # undeploy is succesfull. Don't reformat file if empty.
-      if [ -s $resultfile ]; then
-        json_reformat < $resultfile
-      else
-        echo "$1 undeployed"
-      fi
-    fi
-  else
-    echo Error: expected the name of xapp to undeploy
-    status=1
-  fi
+sub do_undeploy(@) {
+    my $name = $_[0] || "";
+    my $urlpath = $base_xapps;
+    if ($name ne "") {
+        make_temps();
+        $urlpath = "$urlpath/$name";
+        if (rest("DELETE", $urlpath)) {
+            if ($http_code eq "204") {
+                print "SUCCESSFUL DELETION\n";
+                $status = 0;
+            }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID XAPP NAME SUPPLIED";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status = 1;
+        }
+        remove_temps();
+    }
+    else {
+        print "$myname: Error: expected the name of xapp to undeploy\n";
+        $status = 1;
+    }
 }
 
-do_status() {
-  local urlpath
+sub do_status(@) {
+    my $name = $_[0] || "";
+    my $instance = $_[1] || "";
+    my $urlpath = $base_xapps;
 
-  urlpath=$base_xapps
-  if [ "x$1" != "x" ]; then
-    urlpath="$urlpath/$1"
-  fi
-  if [ "x$2" != "x" ]; then
-    urlpath="$urlpath/instances/$2"
-  fi
-  if rest GET $urlpath; then
-    json_reformat < $resultfile
-  fi
+    if ($name ne "") {
+        $urlpath = "$urlpath/$name";
+    }
+    if ($instance ne "") {
+        $urlpath = "$urlpath/instances/$instance"
+    }
+    make_temps();
+    if (rest("GET", $urlpath)) {
+        if ($http_code eq "200") {
+            print_json $resultfile;
+            $status = 0;
+        }
+        else {
+            my $error;
+            if ($http_code eq "400") {
+                $error = "INVALID XAPP NAME SUPPLIED";
+            }
+            if ($http_code eq "404") {
+                $error = "XAPP NOT FOUND";
+            }
+            elsif ($http_code eq "500") {
+                $error = "INTERNAL ERROR";
+            }
+            else {
+                $error = "UNKNOWN STATUS $http_code";
+            }
+            print "$error\n";
+            $status = 1;
+        }
+    }
+    else {
+        $status = 1;
+    }
+    remove_temps();
 }
 
-# This is a bit more complex. $1 is sub-command: list, add, delete, modify
-
+# Helpers for subscription:
 # Validate the subscription data that follows a subscription add or modify
 # subcommand. $1=URL, $2=eventType, $3=maxRetries, $4=retryTimer
 # URL must look like URL, event type must be one of created deleted all,
 # maxRetries and retryTimer must be non-negative numbers.
-# If errors, sets variable status=1 and prints errors, else leaves
-# status unchanged.
+# If errors, returns false (0) and prints errors, else returns 1.
 #
-validate_subscription() {
-   if ! expr "$1" : "^http://.*" \| "$1" : "^https://.*" >/dev/null; then
-     echo "$myname: bad URL $1"
-     status=1
-   fi
-   if ! [ "$2" = created -o "$2" = deleted -o "$2" = all ]; then
-     echo "$myname: unrecognized event $2"
-     status=1
-   fi
-   if ! expr "$3" : "^[0-9][0-9]*$" >/dev/null; then
-     echo "$myname: invalid maximum retries count $3"
-     status=1	
-   fi
-   if ! expr "$4" : "^[0-9][0-9]*$" >/dev/null; then
-     echo "$myname: invalid retry time $4"
-     status=1	
-   fi
+sub validate_subscription(@) {
+    # Using the API parameter names
+    my $targetUrl = $_[0] || "";
+    my $eventType = $_[1] || "";
+    my $maxRetries = $_[2] || "";
+    my $retryTimer = $_[3] || "";
+    my $retval = 1;
+
+    if (! ($targetUrl =~ /^http:\/\/.*/ or $targetUrl =~ /^https:\/\/.*/)) {
+        print "$myname: bad URL $targetUrl\n";
+        $retval = 0;
+    }
+    if ($eventType ne "created" and $eventType ne "deleted" and
+        $eventType ne "all") {
+        print "$myname: unrecognized event $eventType\n";
+        $retval = 0;
+    }
+    if (! ($maxRetries =~ /^[0-9]+$/)) {
+        print "$myname: invalid maximum retries count $maxRetries\n";
+        $retval = 0;
+    }
+    if (! ($retryTimer =~ /^[0-9]+$/)) {
+        print "$myname: invalid retry time $retryTimer\n";
+        $retval = 0;
+    }
+    return $retval;
 }
 
-do_subscriptions() {
-  local urlpath
-  urlpath=$base_subs
-  case $1 in
-    (list)
-      if [ "x$2" != "x" ]; then
-        urlpath="$urlpath/$2"
-      fi
-      if rest GET $urlpath; then
-        json_reformat < $resultfile
-      else
-        status=1
-      fi
-    ;;
-    (add)
-      validate_subscription "$2" "$3" "$4" "$5"
-      if [ $status = 0 ]; then
-        if rest POST $urlpath \{\"targetUrl\":\"$2\",\"eventType\":\"$3\",\"maxRetries\":$4,\"retryTimer\":$5\} ; then
-          json_reformat < $resultfile
-        else
-          status=1
-	fi
-      fi
-    ;;
-    (delete|del)
-      if [ "x$2" != "x" ]; then
-        urlpath="$urlpath/$2"
-      else
-	echo "$myname: Subscription id required"
-	status=1
-      fi
-      if [ $status = 0 ]; then
-        if rest DELETE $urlpath; then
-          # Currently appmgr returns an empty result if
-          # delete is succesfull. Don't reformat file if empty.
-          if [ -s $resultfile ]; then
-            json_reformat < $resultfile
-          else
-            echo "Subscription $2 deleted"
-          fi
-        else
-          status=1
-	fi        
-      fi
-    ;;
-    (modify|mod)
-      if [ "x$2" != "x" ]; then
-        urlpath="$urlpath/$2"
-      else
-	echo "$myname: Subscription id required"
-	status=1
-      fi
-      if [ $status = 0 ]; then
-        validate_subscription "$3" "$4" "$5" "$6"
-        if [ $status = 0 ]; then
-          if rest PUT $urlpath \{\"targetUrl\":\"$3\",\"eventType\":\"$4\",\"maxRetries\":$5,\"retryTimer\":$6\} ; then
-            json_reformat < $resultfile
-          else
-            status=1
-          fi
-        fi
-      fi
-    ;;
-    (*)
-      echo "$myname: unrecognized subscriptions subcommand $1"
-      status=1
-  esac
+# Format a subscriptionRequest JSON object
+
+sub make_subscriptionRequest(@) {
+    my $targetUrl = $_[0];
+    my $eventType = $_[1];
+    my $maxRetries = $_[2];
+    my $retryTimer = $_[3];
+    return "{\"Data\": {\"TargetUrl\":\"$targetUrl\",\"EventType\":\"$eventType\",\"MaxRetries\":$maxRetries,\"RetryTimer\":$retryTimer}}";
 }
 
-do_config() {
-  local urlpath
-  urlpath=$base_config
-  case $1 in
-    (get|list)
-      if [ "x$2" != "x" ]; then
-        urlpath="$urlpath/$2"
-      fi
-      if rest GET $urlpath; then
-        json_reformat < $resultfile
-      else
-        status=1
-      fi
-    ;;
-    (add|update)
-      if rest POST $urlpath "@$2" ; then
-        cat $resultfile
-      else
-        status=1
-    fi
-    ;;
-    (del|delete|remove|rem)
-      if rest DELETE $urlpath "@$2" ; then
-        cat $resultfile
-      else
-        status=1
-    fi
-    ;;
-    (*)
-      echo "$myname: unrecognized config subcommand $1"
-      status=1
-  esac
+# Subscriptions:
+# $1 is sub-command: list, add, delete, modify
+
+sub do_subscriptions(@) {
+    my $subcommand = $_[0] || "";
+    shift;
+
+    my %subcommands = (
+        "list" => \&do_subscription_list,
+        "add" => \&do_subscription_add,
+        "delete" => \&do_subscription_delete,
+        "del" => \&do_subscription_delete,
+        "modify" => \&do_subscription_modify,
+        "mod" => \&do_subscription_modify
+    );
+    if (exists $subcommands{$subcommand}) {
+        $subcommands{$subcommand}(@_);
+    }
+    else {
+        print "$myname: unrecognized subscriptions subcommand $subcommand\n";
+        helphint();
+        $status=1
+    }
 }
 
-case $cmd in
-  (deploy)
-    do_deploy "$2"
-    ;;
-  (undeploy)
-    do_undeploy "$2"
-    ;;
-  (status)
-    do_status "$2" "$3"
-    ;;
-  (subscriptions)
-    do_subscriptions "$2" "$3" "$4" "$5" "$6" "$7"
-    ;;
-  (config)
-    do_config "$2" "$3"
-    ;;
-  (health)
-    if rest GET $base_health ; then
-      echo OK
-    else
-      echo NOT OK
-    fi
-    ;;
-esac
-remove_temps
-exit $status
+# list: With empty parameter, list all, else the parameter is
+# a subscriptionId
 
-# An Emacs hack to set the indentation style of this file
-# Local Variables:
-# sh-indentation:2
-# End:
+sub do_subscription_list(@) {
+    my $urlpath=$base_subs;
+    my $subscriptionId = $_[0] || "";
+    if ($subscriptionId ne "") {
+        $urlpath = "$urlpath/$subscriptionId";
+    }
+    make_temps();
+    if (rest("GET", $urlpath)) {
+        if ($http_code eq "200") {
+            print_json $resultfile;
+            $status = 0;
+        }
+        else {
+            my $error;
+            if ($http_code eq "400") {
+                $error = "INVALID SUBSCRIPTION ID $subscriptionId";
+            }
+            elsif ($http_code eq "404") {
+                $error = "SUBSCRIPTION $subscriptionId NOT FOUND";
+            }
+            elsif ($http_code eq "500") {
+                $error = "INTERNAL ERROR";
+            }
+            else {
+                $error = "UNKNOWN STATUS $http_code";
+            }
+            print "$error\n";
+            $status = 1;
+        }
+    }
+    else {
+        $status=1;
+    }
+    remove_temps();
+}
+
+sub do_subscription_add(@) {
+    my $urlpath=$base_subs;
+
+    if (validate_subscription(@_)) {
+        make_temps();
+        if (rest("POST", $urlpath, make_subscriptionRequest(@_))) {
+            if ($http_code eq "201") {
+                print_json $resultfile;
+                $status = 0;
+            }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID INPUT";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+    else {
+        $status = 1;
+    }
+}
+
+sub do_subscription_delete(@) {
+    my $urlpath=$base_subs;
+    my $subscriptionId = $_[0] || "";
+    if ($subscriptionId ne "") {
+        $urlpath = "$urlpath/$subscriptionId";
+    }
+    else {
+        print "$myname: delete: Subscription id required\n";
+        $status=1;
+        return;
+    }
+    make_temps();
+    if (rest("DELETE", $urlpath)) {
+        if ($http_code eq "204") {
+            print "SUBSCRIPTION $subscriptionId DELETED\n";
+            $status = 0;
+        }
+        else {
+            my $error;
+            if ($http_code eq "400") {
+                $error = "INVALID SUBSCRIPTION ID $subscriptionId";
+            }
+            elsif ($http_code eq "500") {
+                $error = "INTERNAL ERROR";
+            }
+            else {
+                $error = "UNKNOWN STATUS $http_code";
+            }
+            print "$error\n";
+            $status = 1;
+        }
+    }
+    else {
+        $status = 1;
+    }
+    remove_temps();
+}
+
+sub do_subscription_modify(@) {
+    my $urlpath=$base_subs;
+    if (defined $_[0]) {
+        $urlpath = "$urlpath/$_[0]";
+    }
+    else {
+        print "$myname: modify: Subscription id required\n";
+        $status=1;
+        return;
+    }
+    shift;
+    if (validate_subscription(@_)) {
+        make_temps();
+        if (rest("PUT", $urlpath, make_subscriptionRequest(@_))) {
+            if ($http_code eq "200") {
+                print_json $resultfile;
+                $status = 0;
+            }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID INPUT";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+    else {
+        $status = 1;
+    }
+}
+
+sub do_health(@) {
+    my $urlpath=$base_health;
+    my $check = $_[0] || "";
+    # API now defines two types of checks, either of
+    # which must be specified.
+    if ($check ne "alive" and $check ne "ready") {
+        print "$myname: health check type required (alive or ready)\n";
+        $status=1;
+        return;
+    }
+    $urlpath = "$urlpath/$check";
+    make_temps();
+    if (rest("GET", $urlpath)) {
+        my $res;
+        if ($check eq "alive") {
+            # If GET succeeds at all, the xapp manager is alive, no
+            # need to check the HTTP code.
+            $res = "ALIVE";
+        }
+        else {
+            if ($http_code eq "200") {
+                $res = "READY";
+            }
+            elsif ($http_code eq "503") {
+                $res = "NOT READY";
+            }
+            elsif ($http_code eq "500") {
+                $res = "INTERNAL ERROR";
+            }
+            else {
+                $res = "UNKNOWN STATUS $http_code";
+            }
+        }
+        print "$res\n";
+    }
+    else {
+        $status = 1;
+        print "$myname: health check failed to contact appmgr\n";
+    }
+    remove_temps();
+}
+
+sub do_config(@) {
+    my $subcommand = $_[0] || "";
+    shift;
+
+    my %subcommands = (
+        "list" => \&do_config_list,
+        "add" => \&do_config_add,
+        "delete" => \&do_config_delete,
+        "del" => \&do_config_delete,
+        "modify" => \&do_config_modify,
+        "mod" => \&do_config_modify
+    );
+    if (exists $subcommands{$subcommand}) {
+        $subcommands{$subcommand}(@_);
+    }
+    else {
+        print "$myname: unrecognized config subcommand $subcommand\n";
+        helphint();
+        $status=1
+    }
+}
+
+sub do_config_list(@) {
+    if (defined $_[0]) {
+        print "$myname: \"config list\" has no parameters\n";
+        $status = 1;
+        return;
+    }
+    make_temps();
+    if (rest("GET", $base_config)) {
+        if ($http_code eq "200") {
+            print_json $resultfile;
+            $status = 0;
+        }
+        else {
+            my $error;
+            if ($http_code eq "500") {
+                $error = "INTERNAL ERROR";
+            }
+            else {
+                $error = "UNKNOWN STATUS $http_code";
+            }
+            print "$error\n";
+            $status = 1;
+        }
+    }
+    else {
+        $status=1;
+    }
+    remove_temps();
+}
+
+# validate_config() checks configuration commmand line.
+# "config add" and "config modify" expect either single parameter which
+# must be a JSON file that contains the whole thing to send (see API),
+# or 5 parameters, where the first three are
+# $_[0] = name
+# $_[1] = configName (name of the configMap)
+# $_[2] = namespace
+# Followed by two file names:
+# $_[3] = file containing configSchema
+# $_[4] = file containing data for configMap
+# Giving the last two literally on the command line does not make much sense,
+# since they are arbitrary JSON data.
+# On success, returns parameter count (1 or 5), depending on which kind of
+# command line found.
+# 0 if errors.
+
+# Check only the 3 names at the beginning of config add/modify/delete
+sub validate_config_names(@) {
+    my $retval = 1;
+    # Names in the Kubernetes world consist of lowercase alphanumerics
+    # and - and . as specified in
+    # https://kubernetes.io/docs/concepts/overview/working-with-objects/name
+    for (my $idx = 0; $idx <= 2; ++$idx) {
+        if (! ($_[$idx] =~ /^[a-z][-a-z0-9.]*$/)) {
+            print "$myname: invalid characters in name $_[$idx]\n";
+            $retval = 0;
+        }
+    }
+    return $retval;
+}
+
+sub validate_config(@) {
+    my $retval = 1;
+    print "validate_config args @_\n";
+    if ($#_ == 0) {
+        if (! -r $_[0]) {
+            print "$myname: config file $_[0] cannot be read: $!\n";
+            $retval = 0;
+        }
+    }
+    elsif ($#_ == 4) {
+        $retval = 5;
+        if (! validate_config_names(@_)) {
+            $retval = 0;
+        }
+        for (my $idx = 3; $idx <= 4; ++$idx) {
+            if (! -r $_[$idx]) {
+                print "$myname: cannot read file $_[$idx]\n";
+                $retval = 0;
+            }
+        }
+    }
+    else {
+        print "$myname: config add: 1 or 5 parameter expected\n";
+        $retval = 0;
+    }
+    return $retval;
+}
+
+# Generate JSON for the xAppConfig element (see API).
+
+sub make_xAppConfigInfo($$$) {
+    return "{\"xAppName\":\"$_[0]\",\"configMapName\":\"$_[1]\",\"namespace\":\"$_[2]\"}";
+}
+
+sub make_xAppConfig(@) {
+    my $retval =  "{\"xAppConfigInfo\":" . make_xAppConfigInfo($_[0],$_[1],$_[2]);
+    my $fh;
+    open($fh, "<", $_[3]) or die "failed to open $_[3]";
+    my @obj = <$fh>;
+    close($fh);
+    $retval = $retval . ",\"configSchema\":" . join("", @obj);
+    open($fh, "<", $_[4]) or die "failed to open $_[4]";
+    @obj = <$fh>;
+    close($fh);
+    $retval = $retval . ",\"configMap\":" . join("", @obj) . "}";
+}
+
+sub do_config_add(@) {
+    my $paramCount;
+
+    $paramCount = validate_config(@_);
+    if ($paramCount > 0) {
+        my $xAppConfig;
+        if ($paramCount == 1) {
+            $xAppConfig = "\@$_[0]";
+        }
+        else {
+            $xAppConfig = make_xAppConfig(@_);
+        }
+        make_temps();
+        if (rest("POST", $base_config, $xAppConfig)) {
+            if ($http_code eq "201") {
+                print_json $resultfile;
+                $status = 0;
+            }
+            elsif ($http_code eq "422") { # Validation failed, details in result
+                print_json $resultfile;
+                $status = 1;
+	    }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID INPUT";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+    else {
+        $status = 1;
+    }
+}
+
+sub do_config_modify(@) {
+    my $paramCount;
+
+    $paramCount = validate_config(@_);
+    if ($paramCount > 0) {
+        my $xAppConfig;
+        if ($paramCount == 1) {
+            $xAppConfig = "\@$_[0]";
+        }
+        else {
+            $xAppConfig = make_xAppConfig(@_);
+        }
+        make_temps();
+        if (rest("PUT", $base_config, $xAppConfig)) {
+            if ($http_code eq "200") {
+                print_json $resultfile;
+                $status = 0;
+            }
+            elsif ($http_code eq "422") { # Validation failed, details in result
+                print_json $resultfile;
+                $status = 1;
+	    }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID INPUT";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+    else {
+        $status = 1;
+    }
+}
+
+# In config delete, allow either 1 parameter naming a file that contains
+# a JSON xAppConfigInfo object, or 3 parameters giving the
+# components (xAppName, configMapName, namespace), same as
+# in add and modify operations.
+
+sub do_config_delete(@) {
+    my $xAppConfigInfo = "";
+
+    if ($#_ != 0 and $#_ != 2) {
+        print "$myname: wrong number of parameters for config delete\n";
+        $status = 1;
+    }
+    elsif ($#_ == 0) {
+        if (-r $_[0]) {
+            $xAppConfigInfo = "\@$_[0]";
+        }
+        else {
+            print "$myname: config file $_[0] cannot be read: $!\n";
+            $status = 1;
+        }
+    }
+    elsif (($#_ == 2) && validate_config_names(@_)) {
+        $xAppConfigInfo = make_xAppConfigInfo($_[0],$_[1],$_[2]);
+    }
+    else {
+        print "$myname: bad parameters for config delete\n";
+        $status = 1;
+    }
+    if ($xAppConfigInfo ne "") {
+        make_temps();
+        if (rest("DELETE", $base_config, $xAppConfigInfo)) {
+            if ($http_code eq "204") {
+                print "SUCCESFUL DELETION OF CONFIG\n";
+                $status = 0;
+            }
+            else {
+                my $error;
+                if ($http_code eq "400") {
+                    $error = "INVALID PARAMETERS SUPPLIED";
+                }
+                elsif ($http_code eq "500") {
+                    $error = "INTERNAL ERROR";
+                }
+                else {
+                    $error = "UNKNOWN STATUS $http_code";
+                }
+                print "$error\n";
+                $status = 1;
+            }
+        }
+        else {
+            $status=1;
+        }
+        remove_temps();
+    }
+}

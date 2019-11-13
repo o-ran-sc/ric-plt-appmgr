@@ -32,23 +32,33 @@ RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-
 # Install kubectl from Docker Hub
 COPY --from=lachlanevenson/k8s-kubectl:v1.10.3 /usr/local/bin/kubectl /usr/local/bin/kubectl
 
-RUN mkdir -p /ws
-WORKDIR "/ws"
 ENV GOPATH="/go"
 
+# Swagger
+RUN mkdir -p /go/bin
+RUN cd /go/bin \
+    && wget --quiet https://github.com/go-swagger/go-swagger/releases/download/v0.19.0/swagger_linux_amd64 \
+    && mv swagger_linux_amd64 swagger \
+    && chmod +x swagger
+
+RUN mkdir -p /go/src/ws
+WORKDIR "/go/src/ws"
+
 # Module prepare (if go.mod/go.sum updated)
-COPY go.mod /ws
-COPY go.sum /ws
+COPY go.mod /go/src/ws
+COPY go.sum /go/src/ws
 RUN GO111MODULE=on go mod download
 
 # build and test
-COPY . /ws
+COPY . /go/src/ws
 
-RUN make -C /ws go-build
+RUN /go/bin/swagger generate server -f api/appmgr_rest_api.yaml --name AppManager -t pkg/ --exclude-main
 
-RUN make -C /ws go-test-fmt
+COPY . /go/src/ws
 
-#RUN make -C /ws go-test
+RUN make -C /go/src/ws go-build
+
+RUN make -C /go/src/ws go-test-fmt
 
 CMD ["/bin/bash"]
 
@@ -70,12 +80,12 @@ COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
 RUN ldconfig
 
 #
-# xApp
+# xApp Manager
 #
 RUN mkdir -p /opt/xAppManager \
     && chmod -R 755 /opt/xAppManager
 
-COPY --from=appmgr-build /ws/cache/go/cmd/appmgr /opt/xAppManager/appmgr
+COPY --from=appmgr-build /go/src/ws/cache/go/cmd/appmgr /opt/xAppManager/appmgr
 
 WORKDIR /opt/xAppManager
 

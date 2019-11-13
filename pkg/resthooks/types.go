@@ -17,17 +17,25 @@
 ==================================================================================
 */
 
-package main
+package resthooks
 
-var Logger *Log
+import (
+	sdl "gerrit.oran-osc.org/r/ric-plt/sdlgo"
+	cmap "github.com/orcaman/concurrent-map"
+	"net/http"
 
-func main() {
-	Logger = NewLogger("xapp-manager")
-	Logger.SetMdc("appmgr", "0.1.9")
-	loadConfig()
+	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+)
 
-	m := XappManager{}
-	m.Initialize(&Helm{}, &ConfigMap{})
+type SubscriptionInfo struct {
+	Id   string
+	req  models.SubscriptionRequest
+	resp models.SubscriptionResponse
+}
 
-	m.Run()
+type Resthook struct {
+	client        *http.Client
+	subscriptions cmap.ConcurrentMap
+	db            *sdl.SdlInstance
+	Seq           int64
 }

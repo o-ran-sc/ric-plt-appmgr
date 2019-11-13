@@ -58,13 +58,13 @@ GOMODFILES:=go.mod go.sum
 .SECONDEXPANSION:
 $(GO_CACHE_DIR)/%: $(GOFILES) $(GOMODFILES) $$(BUILDDEPS)
 	@echo "Building:\t$*"
-	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOBUILD) -o $@ ./$*
+	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOBUILD) -o $@ cmd/appmgr.go
 
 
 .SECONDEXPANSION:
 $(GO_CACHE_DIR)/%_test: $(GOALLFILES) $(GOMODFILES) $$(BUILDDEPS) FORCE
 	@echo "Testing:\t$*"
-	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOTEST) -coverprofile $(COVEROUT) -c -o $@ ./$*
+	GO111MODULE=on GO_ENABLED=0 GOOS=linux $(GOTEST) -coverprofile $(COVEROUT) ./pkg/resthooks/ ./pkg/helm/ ./pkg/cm/
 	test -e $@ && (eval $(TESTENV) $@ -test.coverprofile $(COVEROUT) || false) || true
 	test -e $@ && (go tool cover -html=$(COVEROUT) -o $(COVERHTML) || false) || true
 

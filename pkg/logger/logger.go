@@ -17,11 +17,10 @@
 ==================================================================================
 */
 
-package main
+package logger
 
 import (
 	mdclog "gerrit.o-ran-sc.org/r/com/golog"
-	"net/http"
 	"time"
 )
 
@@ -62,11 +61,4 @@ func (l *Log) Info(pattern string, args ...interface{}) {
 func (l *Log) Debug(pattern string, args ...interface{}) {
 	l.SetMdc("time", time.Now().Format(time.RFC3339))
 	l.logger.Debug(pattern, args...)
-}
-
-func LogRestRequests(inner http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inner.ServeHTTP(w, r)
-		Logger.Info("Logger: method=%s url=%s", r.Method, r.URL.RequestURI())
-	})
 }
