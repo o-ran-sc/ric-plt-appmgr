@@ -184,7 +184,7 @@ func (m *XappManager) deployXapp(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < 3; i++ {
 		if xapp, err = m.helm.Status(xapp.Name); xapp.Instances != nil {
-			break;
+			break
 		}
 		time.Sleep(time.Duration(5) * time.Second)
 	}

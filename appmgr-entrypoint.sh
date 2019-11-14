@@ -15,10 +15,8 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-cp /opt/ric/config/appmgr.yaml /opt/xAppManager/config-file.yaml
-
 # Copy all certificates from mounted folder to root system
 cp /opt/ric/certificates/* /etc/ssl/certs
 
 # Start services, etc.
-/opt/xAppManager/appmgr -f /opt/xAppManager/config-file.yaml
+/opt/xAppManager/appmgr -f /opt/ric/config/appmgr.yaml
