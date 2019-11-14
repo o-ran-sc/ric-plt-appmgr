@@ -15,13 +15,12 @@
 
 #----------------------------------------------------------
 
-FROM nexus3.o-ran-sc.org:10004/bldr-ubuntu16-c-go:1-u16.04-nng1.1.1 AS appmgr-build
+FROM nexus3.o-ran-sc.org:10004/bldr-ubuntu18-c-go:2-u18.04-nng AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ARG HELMVERSION=v2.12.3
-ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
 
 # Install helm
 RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linux-amd64.tar.gz \
@@ -33,24 +32,28 @@ RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-
 # Install kubectl from Docker Hub
 COPY --from=lachlanevenson/k8s-kubectl:v1.10.3 /usr/local/bin/kubectl /usr/local/bin/kubectl
 
-RUN mkdir -p /go/src/${PACKAGEURL}
-WORKDIR "/go/src/${PACKAGEURL}"
+RUN mkdir -p /ws
+WORKDIR "/ws"
 ENV GOPATH="/go"
 
 # Module prepare (if go.mod/go.sum updated)
-COPY go.mod /go/src/${PACKAGEURL}
-COPY go.sum /go/src/${PACKAGEURL}
+COPY go.mod /ws
+COPY go.sum /ws
 RUN GO111MODULE=on go mod download
 
-# build
-COPY . /go/src/${PACKAGEURL}
-RUN make -C /go/src/${PACKAGEURL} build
+# build and test
+COPY . /ws
+
+RUN make -C /ws go-build
+
+RUN make -C /ws go-test-fmt
+
+#RUN make -C /ws go-test
 
 CMD ["/bin/bash"]
 
 #----------------------------------------------------------
-FROM ubuntu:16.04 as appmgr
-ARG PACKAGEURL=gerrit.o-ran-sc.org/r/ric-plt/appmgr
+FROM ubuntu:18.04 as appmgr
 
 RUN apt-get update -y \
     && apt-get install -y sudo openssl ca-certificates ca-cacert \
@@ -72,8 +75,7 @@ RUN ldconfig
 RUN mkdir -p /opt/xAppManager \
     && chmod -R 755 /opt/xAppManager
 
-COPY --from=appmgr-build /go/src/${PACKAGEURL}/cache/go/cmd/appmgr /opt/xAppManager/appmgr
-#COPY --from=appmgr-build /go/src/${PACKAGEURL}/config/appmgr.yaml /opt/etc/xAppManager/config-file.yaml
+COPY --from=appmgr-build /ws/cache/go/cmd/appmgr /opt/xAppManager/appmgr
 
 WORKDIR /opt/xAppManager
 

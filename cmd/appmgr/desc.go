@@ -316,7 +316,7 @@ func (cm *ConfigMap) GetMessages(name string) (msgs MessageTypes) {
 	return
 }
 
-func (cm *ConfigMap) GetConfigMapName(xappName, namespace string) (string) {
+func (cm *ConfigMap) GetConfigMapName(xappName, namespace string) string {
 	return " configmap-" + namespace + "-" + xappName + "-appconfig"
 }
 
