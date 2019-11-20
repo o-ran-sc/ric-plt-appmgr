@@ -122,7 +122,14 @@ func (rh *Resthook) NotifyClients(xapps models.AllDeployedXapps, et models.Event
 }
 
 func (rh *Resthook) notify(xapps models.AllDeployedXapps, et models.EventType, s SubscriptionInfo, seq int64) error {
-	notif := models.SubscriptionNotification{ID: s.Id, Version: seq, EventType: et, XApps: xapps}
+	xappData, err := json.Marshal(xapps)
+	if err != nil {
+		appmgr.Logger.Info("json.Marshal failed: %v", err)
+		return err
+	}
+
+	// TODO: Use models.SubscriptionNotification instead of internal ...
+	notif := SubscriptionNotification{ID: s.Id, Version: seq, Event: string(et), XApps: string(xappData)}
 	jsonData, err := json.Marshal(notif)
 	if err != nil {
 		appmgr.Logger.Info("json.Marshal failed: %v", err)

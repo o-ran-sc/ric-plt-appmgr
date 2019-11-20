@@ -56,9 +56,9 @@ RUN /go/bin/swagger generate server -f api/appmgr_rest_api.yaml --name AppManage
 
 COPY . /go/src/ws
 
-RUN make -C /go/src/ws go-build
+RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/src/ws/cache/go/cmd/appmgr cmd/appmgr.go
 
-RUN make -C /go/src/ws go-test-fmt
+RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go test -v -cover ./pkg/helm/ ./pkg/cm/
 
 CMD ["/bin/bash"]
 
