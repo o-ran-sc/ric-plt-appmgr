@@ -43,7 +43,7 @@ func NewRestful() *Restful {
 	r := &Restful{
 		helm:  helm.NewHelm(),
 		cm:    cm.NewCM(),
-		rh:    resthooks.NewResthook(),
+		rh:    resthooks.NewResthook(true),
 		ready: false,
 	}
 	r.api = r.SetupHandler()
