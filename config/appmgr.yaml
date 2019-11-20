@@ -26,7 +26,7 @@
   "helm-password-file": "./helm_repo_password"
   "retry": 1
 "xapp":
-  "namespace": "default"
+  "namespace": "ricxapp"
   "tarDir": "/tmp"
   "schema": "descriptors/schema.json"
   "config": "config/config-file.json"

@@ -52,13 +52,16 @@ RUN GO111MODULE=on go mod download
 # build and test
 COPY . /go/src/ws
 
+# Generate Swagger code
 RUN /go/bin/swagger generate server -f api/appmgr_rest_api.yaml --name AppManager -t pkg/ --exclude-main
 
 COPY . /go/src/ws
 
-RUN make -C /go/src/ws go-build
+# Build the code
+RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/src/ws/cache/go/cmd/appmgr cmd/appmgr.go
 
-RUN make -C /go/src/ws go-test-fmt
+# Run unit tests
+RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go test -cover ./pkg/helm/ ./pkg/cm/
 
 CMD ["/bin/bash"]
 
