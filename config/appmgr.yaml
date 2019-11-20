@@ -13,8 +13,6 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-"local":
-  "host": ":8080"
 "helm":
   "host": "192.168.0.12:31807"
   "repo": "http://192.168.0.6/charts"
@@ -26,7 +24,7 @@
   "helm-password-file": "./helm_repo_password"
   "retry": 1
 "xapp":
-  "namespace": "default"
+  "namespace": "ricxapp"
   "tarDir": "/tmp"
   "schema": "descriptors/schema.json"
   "config": "config/config-file.json"

@@ -43,7 +43,7 @@ func NewRestful() *Restful {
 	r := &Restful{
 		helm:  helm.NewHelm(),
 		cm:    cm.NewCM(),
-		rh:    resthooks.NewResthook(),
+		rh:    resthooks.NewResthook(true),
 		ready: false,
 	}
 	r.api = r.SetupHandler()
@@ -53,8 +53,8 @@ func NewRestful() *Restful {
 func (r *Restful) Run() {
 	server := restapi.NewServer(r.api)
 	defer server.Shutdown()
-	server.Port = 8080      //viper.GetInt("local.port")
-	server.Host = "0.0.0.0" //viper.GetString("local.host")
+	server.Port = 8080
+	server.Host = "0.0.0.0"
 
 	appmgr.Logger.Info("Xapp manager started ... serving on %s:%d\n", server.Host, server.Port)
 
