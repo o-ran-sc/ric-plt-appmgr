@@ -39,3 +39,11 @@ type Resthook struct {
 	db            *sdl.SdlInstance
 	Seq           int64
 }
+
+// TODO: remove this when RTMGR changes done
+type SubscriptionNotification struct {
+	Event   string `json:"eventType,omitempty"`
+	ID      string `json:"id,omitempty"`
+	Version int64  `json:"version,omitempty"`
+	XApps   string `json:"xApps,omitempty"`
+}
