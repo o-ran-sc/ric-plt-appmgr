@@ -70,7 +70,7 @@ COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
 RUN ldconfig
 
 #
-# xApp
+# xApp Manager
 #
 RUN mkdir -p /opt/xAppManager \
     && chmod -R 755 /opt/xAppManager
