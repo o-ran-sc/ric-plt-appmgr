@@ -46,7 +46,7 @@ type ConfigMapper interface {
 	RestoreConfigMap(m models.XappDescriptor, cm interface{}) (err error)
 	ReadConfigMap(name string, ns string, c *interface{}) (err error)
 	ApplyConfigMap(r models.XAppConfig, action string) (err error)
-	GetMessages(name string) (msgs MessageTypes)
+	GetRtmData(name string) (msgs RtmData)
 	GetNamespace(ns string) string
 	GetNamesFromHelmRepo() (names []string)
 }
@@ -69,9 +69,10 @@ type Helm struct {
 	cm        ConfigMapper
 }
 
-type MessageTypes struct {
+type RtmData struct {
 	TxMessages []string `json:"txMessages"`
 	RxMessages []string `json:"rxMessages"`
+	Policies   []int64  `json:"Policies"`
 }
 
 type EventType string

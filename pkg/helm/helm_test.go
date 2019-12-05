@@ -165,7 +165,7 @@ func generateXapp(name, status, ver, iname, istatus, ip, port string) (x models.
 	x.Status = status
 	x.Version = ver
 	p, _ := strconv.Atoi(port)
-	var msgs appmgr.MessageTypes
+	var msgs appmgr.RtmData
 
 	instance := &models.XappInstance{
 		Name:       &iname,

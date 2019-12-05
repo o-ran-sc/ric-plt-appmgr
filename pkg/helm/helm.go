@@ -263,7 +263,7 @@ func (h *Helm) GetNames(out string) (names []string, err error) {
 	return names, nil
 }
 
-func (h *Helm) FillInstanceData(name string, out string, xapp *models.Xapp, msgs appmgr.MessageTypes) {
+func (h *Helm) FillInstanceData(name string, out string, xapp *models.Xapp, rtData appmgr.RtmData) {
 	ip, port := h.GetEndpointInfo(name)
 	if ip == "" {
 		appmgr.Logger.Info("Endpoint IP address not found, using CluserIP")
@@ -288,8 +288,9 @@ func (h *Helm) FillInstanceData(name string, out string, xapp *models.Xapp, msgs
 			x.Status = strings.ToLower(x.Status)
 			x.IP = ip
 			x.Port = int64(port)
-			x.TxMessages = msgs.TxMessages
-			x.RxMessages = msgs.RxMessages
+			x.TxMessages = rtData.TxMessages
+			x.RxMessages = rtData.RxMessages
+			x.Policies = rtData.Policies
 			xapp.Instances = append(xapp.Instances, &x)
 		}
 	}
@@ -300,7 +301,7 @@ func (h *Helm) ParseStatus(name string, out string) (xapp models.Xapp, err error
 	xapp.Version = h.GetVersion(name)
 	xapp.Status = h.GetState(out)
 
-	h.FillInstanceData(name, out, &xapp, h.cm.GetMessages(name))
+	h.FillInstanceData(name, out, &xapp, h.cm.GetRtmData(name))
 	return
 }
 

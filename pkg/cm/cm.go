@@ -31,6 +31,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"strconv"
 	"time"
 
 	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
@@ -262,8 +263,8 @@ func (cm *CM) FetchChart(name string) (err error) {
 	return
 }
 
-func (cm *CM) GetMessages(name string) (msgs appmgr.MessageTypes) {
-	appmgr.Logger.Info("Fetching tx/rx messages for: %s", name)
+func (cm *CM) GetRtmData(name string) (msgs appmgr.RtmData) {
+	appmgr.Logger.Info("Fetching RT data for xApp=%s", name)
 
 	ns := cm.GetNamespace("")
 	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, cm.GetConfigMapName(name, ns))
@@ -284,6 +285,11 @@ func (cm *CM) GetMessages(name string) (msgs appmgr.MessageTypes) {
 	}
 	for _, m := range v.GetArray("rmr", "rxMessages") {
 		msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+	}
+	for _, m := range v.GetArray("rmr", "policies") {
+		if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
+			msgs.Policies = append(msgs.Policies, int64(val))
+		}
 	}
 
 	return

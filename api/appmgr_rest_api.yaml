@@ -491,6 +491,10 @@ definitions:
         type: array
         items:
           type: string
+      policies:
+         type: array
+         items:
+           type: integer
   XappDescriptor:
     type: object
     required:

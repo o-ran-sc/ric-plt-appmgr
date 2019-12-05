@@ -52,7 +52,8 @@ var kubectlConfigmapOutput = `
        "maxSize": 2072,
        "numWorkers": 1,
        "txMessages": ["RIC_X2_LOAD_INFORMATION"],
-       "rxMessages": ["RIC_X2_LOAD_INFORMATION"]
+       "rxMessages": ["RIC_X2_LOAD_INFORMATION"],
+	   "policies":   [11, 22, 33]
     },
     "db": {
         "namespace": "ricxapp",
@@ -114,7 +115,7 @@ func (cm *MockedConfigMapper) FetchChart(name string) (err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) GetMessages(name string) (msgs appmgr.MessageTypes) {
+func (cm *MockedConfigMapper) GetRtmData(name string) (msgs appmgr.RtmData) {
 	return
 }
 
@@ -135,19 +136,20 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestGetMessages(t *testing.T) {
-	expectedMsgs := appmgr.MessageTypes{
+func TestGetRtmData(t *testing.T) {
+	expectedMsgs := appmgr.RtmData{
 		TxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
 		RxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
+		Policies:   []int64{11, 22, 33},
 	}
 
 	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(kubectlConfigmapOutput), nil
 	}
 
-	result := NewCM().GetMessages("dummy-xapp")
+	result := NewCM().GetRtmData("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {
-		t.Errorf("TestGetMessages failed: expected: %v, got: %v", expectedMsgs, result)
+		t.Errorf("TestGetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
 	}
 }
 
