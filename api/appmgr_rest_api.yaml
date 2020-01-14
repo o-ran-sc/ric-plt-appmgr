@@ -522,14 +522,12 @@ definitions:
   ConfigMetadata:
     type: object
     required:
-      - name
+      - xappName
+      - namespace
     properties:
-      name:
+      xappName:
         type: string
         description: Name of the xApp
-      configName:
-        type: string
-        description: Name of the config map
       namespace:
         type: string
         description: Name of the namespace
@@ -553,14 +551,10 @@ definitions:
     type: object
     required:
       - metadata
-      - descriptor
       - config
     properties:
       metadata:
         $ref: '#/definitions/ConfigMetadata'
-      descriptor:
-        type: object
-        description: Schema of configuration in JSON format
       config:
         type: object
         description: Configuration in JSON format

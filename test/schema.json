@@ -5,40 +5,56 @@
   "type": "object",
   "title": "The Root Schema",
   "required": [
-    "local",
-    "logger"
+    "active",
+    "interfaceId"
   ],
   "properties": {
-    "local": {
-      "$id": "#/properties/local",
-      "type": "object",
-      "title": "The Local Schema",
-      "required": [
-        "host"
-      ],
-      "properties": {
-        "host": {
-          "$id": "#/properties/local/properties/host",
-          "type": "string",
-          "title": "The Host Schema",
-          "default": "",
-          "pattern": "^(.*)$"
-        }
-      }
+    "active": {
+      "$id": "#/properties/active",
+      "type": "boolean",
+      "title": "The Active Schema",
+      "default": false,
+      "examples": [
+        false
+      ]
     },
-    "logger": {
-      "$id": "#/properties/logger",
+    "interfaceId": {
+      "$id": "#/properties/interfaceId",
       "type": "object",
-      "title": "The Logger Schema",
+      "title": "The Interfaceid Schema",
       "required": [
-        "level"
+        "globalENBId"
       ],
       "properties": {
-        "level": {
-          "$id": "#/properties/logger/properties/level",
-          "type": "integer",
-          "title": "The Level Schema",
-          "default": 0
+        "globalENBId": {
+          "$id": "#/properties/interfaceId/properties/globalENBId",
+          "type": "object",
+          "title": "The Globalenbid Schema",
+          "required": [
+            "plmnId",
+            "eNBId"
+          ],
+          "properties": {
+            "plmnId": {
+              "$id": "#/properties/interfaceId/properties/globalENBId/properties/plmnId",
+              "type": "string",
+              "title": "The Plmnid Schema",
+              "default": "",
+              "examples": [
+                "310150"
+              ],
+              "pattern": "^(.*)$"
+            },
+            "eNBId": {
+              "$id": "#/properties/interfaceId/properties/globalENBId/properties/eNBId",
+              "type": "integer",
+              "title": "The Enbid Schema",
+              "default": 0,
+              "examples": [
+                202251
+              ]
+            }
+          }
         }
       }
     }

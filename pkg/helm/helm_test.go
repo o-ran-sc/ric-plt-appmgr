@@ -85,7 +85,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestHelmStatus(t *testing.T) {
-	//NewHelm().SetCM(&ConfigMap{})
 	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte("10.102.184.212"), nil
 	}

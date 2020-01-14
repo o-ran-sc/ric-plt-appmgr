@@ -79,35 +79,11 @@ func (cm *MockedConfigMapper) UploadConfig() (cfg []models.XAppConfig) {
 	return
 }
 
-func (cm *MockedConfigMapper) CreateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
-	return
-}
-
-func (cm *MockedConfigMapper) GetConfigMap(m models.XappDescriptor, c *interface{}) (err error) {
-	return
-}
-
 func (cm *MockedConfigMapper) UpdateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
 	return
 }
 
-func (cm *MockedConfigMapper) DeleteConfigMap(r models.XAppConfig) (c interface{}, err error) {
-	return
-}
-
-func (cm *MockedConfigMapper) PurgeConfigMap(m models.XappDescriptor) (c interface{}, err error) {
-	return
-}
-
-func (cm *MockedConfigMapper) RestoreConfigMap(m models.XappDescriptor, c interface{}) (err error) {
-	return
-}
-
 func (cm *MockedConfigMapper) ReadConfigMap(name string, ns string, c *interface{}) (err error) {
-	return
-}
-
-func (cm *MockedConfigMapper) ApplyConfigMap(r models.XAppConfig, action string) (err error) {
 	return
 }
 
@@ -203,87 +179,37 @@ func TestGetNamesFromHelmRepoFailure(t *testing.T) {
 	}
 }
 
-func TestApplyConfigMapSuccess(t *testing.T) {
+func TestBuildConfigMapSuccess(t *testing.T) {
 	name := "dummy-xapp"
-	m := models.ConfigMetadata{Name: &name, Namespace: "ricxapp"}
-	s := ConfigSample{5, "localhost"}
+	namespace := "ricxapp"
+	m := models.ConfigMetadata{XappName: &name, Namespace: &namespace}
+	s := `{"Metadata": {"XappName": "ueec", "Namespace": "ricxapp"}, "Config": {"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}}`
 
 	util.KubectlExec = func(args string) (out []byte, err error) {
 		return []byte(`{"logger": {"level": 2}}`), nil
 	}
 
-	err := NewCM().ApplyConfigMap(models.XAppConfig{Metadata: &m, Config: s}, "create")
+	cmString, err := NewCM().BuildConfigMap(models.XAppConfig{Metadata: &m, Config: s})
 	if err != nil {
-		t.Errorf("ApplyConfigMap failed: %v", err)
-	}
-}
-
-func TestRestoreConfigMapSuccess(t *testing.T) {
-	name := "dummy-xapp"
-	m := models.XappDescriptor{XappName: &name, Namespace: "ricxapp"}
-	s := ConfigSample{5, "localhost"}
-
-	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte(`{"logger": {"level": 2}}`), nil
-	}
-
-	err := NewCM().RestoreConfigMap(m, s)
-	if err != nil {
-		t.Errorf("RestoreConfigMap failed: %v", err)
-	}
-}
-
-func TestDeleteConfigMapSuccess(t *testing.T) {
-	util.HelmExec = func(args string) (out []byte, err error) {
-		return []byte("ok"), nil
-	}
-
-	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte(`{"logger": {"level": 2}}`), nil
-	}
-
-	validationErrors, err := NewCM().DeleteConfigMap(models.ConfigMetadata{})
-	if err != nil {
-		t.Errorf("DeleteConfigMap failed: %v -> %v", err, validationErrors)
-	}
-}
-
-func TestPurgeConfigMapSuccess(t *testing.T) {
-	util.HelmExec = func(args string) (out []byte, err error) {
-		return []byte("ok"), nil
-	}
-
-	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte(`{"logger": {"level": 2}}`), nil
-	}
-
-	name := "dummy-xapp"
-	validationErrors, err := NewCM().PurgeConfigMap(models.XappDescriptor{XappName: &name})
-	if err != nil {
-		t.Errorf("PurgeConfigMap failed: %v -> %v", err, validationErrors)
-	}
-}
-
-func TestCreateConfigMapFails(t *testing.T) {
-	name := "dummy-xapp"
-	validationErrors, err := NewCM().CreateConfigMap(models.XAppConfig{Metadata: &models.ConfigMetadata{Name: &name}})
-	if err == nil {
-		t.Errorf("CreateConfigMap failed: %v -> %v", err, validationErrors)
+		t.Errorf("BuildConfigMap failed: %v -> %v", err, cmString)
 	}
 }
 
 func TestUpdateConfigMapFails(t *testing.T) {
 	name := "dummy-xapp"
-	validationErrors, err := NewCM().UpdateConfigMap(models.XAppConfig{Metadata: &models.ConfigMetadata{Name: &name}})
+	namespace := "ricxapp"
+	config := models.XAppConfig{Metadata: &models.ConfigMetadata{XappName: &name, Namespace: &namespace}}
+
+	validationErrors, err := NewCM().UpdateConfigMap(config)
 	if err == nil {
-		t.Errorf("CreateConfigMap failed: %v -> %v", err, validationErrors)
+		t.Errorf("UpdateConfigMap failed: %v -> %v", err, validationErrors)
 	}
 }
 
 func TestValidationSuccess(t *testing.T) {
 	var d interface{}
 	var cfg map[string]interface{}
-	err := json.Unmarshal([]byte(`{"local": {"host": ":8080"}, "logger": {"level": 3}}`), &cfg)
+	err := json.Unmarshal([]byte(`{"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}`), &cfg)
 
 	err = NewCM().ReadFile("../../test/schema.json", &d)
 	if err != nil {
@@ -299,7 +225,7 @@ func TestValidationSuccess(t *testing.T) {
 func TestValidationFails(t *testing.T) {
 	var d interface{}
 	var cfg map[string]interface{}
-	err := json.Unmarshal([]byte(`{"local": {"host": ":8080"}, "logger": {"level": "INVALID"}}`), &cfg)
+	err := json.Unmarshal([]byte(`{"active": "INVALID", "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}`), &cfg)
 
 	err = NewCM().ReadFile("../../test/schema.json", &d)
 	if err != nil {
