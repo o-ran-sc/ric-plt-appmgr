@@ -23,16 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
-	"github.com/valyala/fastjson"
-	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"strconv"
-	"time"
+	"github.com/spf13/viper"
+	"github.com/valyala/fastjson"
+	"github.com/xeipuuv/gojsonschema"
 
 	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
 	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
@@ -45,44 +44,41 @@ func NewCM() *CM {
 	return &CM{}
 }
 
-func (cm *CM) UploadConfig() (cfg models.AllXappConfig) {
-	ns := cm.GetNamespace("")
+func (cm *CM) UploadConfig() (configList models.AllXappConfig) {
+	namespace := cm.GetNamespace("")
 	for _, name := range cm.GetNamesFromHelmRepo() {
-		if name == "appmgr" {
+		var activeConfig interface{}
+		xAppName := name
+		if err := cm.GetConfigmap(xAppName, namespace, &activeConfig); err != nil {
+			appmgr.Logger.Info("No active configMap found for '%s', ignoring ...", xAppName)
 			continue
 		}
 
 		c := models.XAppConfig{
-			Metadata: &models.ConfigMetadata{Name: &name, Namespace: ns, ConfigName: cm.GetConfigMapName(name, ns)},
+			Metadata: &models.ConfigMetadata{XappName: &xAppName, Namespace: &namespace},
+			Config: activeConfig,
 		}
-
-		err := cm.ReadSchema(name, &c)
-		if err != nil {
-			continue
-		}
-
-		err = cm.ReadConfigMap(c.Metadata.ConfigName, ns, &c.Config)
-		if err != nil {
-			appmgr.Logger.Info("No active configMap found, using default!")
-		}
-
-		cfg = append(cfg, &c)
+		configList = append(configList, &c)
 	}
 	return
 }
 
-func (cm *CM) ReadSchema(name string, c *models.XAppConfig) (err error) {
+func (cm *CM) GetConfigmap(name, namespace string, c *interface{}) (err error) {
+	cmJson, err := cm.ReadConfigmap(name, namespace)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(cmJson), &c)
+}
+
+func (cm *CM) ReadSchema(name string, desc *interface{}) (err error) {
 	if err = cm.FetchChart(name); err != nil {
 		return
 	}
 
 	tarDir := viper.GetString("xapp.tarDir")
-	err = cm.ReadFile(path.Join(tarDir, name, viper.GetString("xapp.schema")), &c.Descriptor)
-	if err != nil {
-		return
-	}
-
-	err = cm.ReadFile(path.Join(tarDir, name, viper.GetString("xapp.config")), &c.Config)
+	err = cm.ReadFile(path.Join(tarDir, name, viper.GetString("xapp.schema")), desc)
 	if err != nil {
 		return
 	}
@@ -94,148 +90,70 @@ func (cm *CM) ReadSchema(name string, c *models.XAppConfig) (err error) {
 	return
 }
 
-func (cm *CM) ReadConfigMap(ConfigName string, ns string, c *interface{}) (err error) {
-	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, ConfigName)
-	configMapJson, err := util.KubectlExec(args)
-	if err != nil {
-		return
+func (cm *CM) UpdateConfigMap(r models.XAppConfig) (models.ConfigValidationErrors, error) {
+	if validationErrors, err := cm.Validate(r); err != nil {
+		return validationErrors, err
 	}
 
-	err = json.Unmarshal([]byte(configMapJson), &c)
+	cmContent, err := cm.BuildConfigMap(r)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	if err := cm.GenerateJSONFile(cmContent); err != nil {
+		return nil, err
+	}
+	err = cm.ReplaceConfigMap(*r.Metadata.XappName, *r.Metadata.Namespace)
+
+	return nil, err
 }
 
-func (cm *CM) ApplyConfigMap(r models.XAppConfig, action string) (err error) {
-	c := appmgr.ConfigMap{
-		Kind:       "ConfigMap",
-		ApiVersion: "v1",
-		Metadata:   appmgr.CMMetadata{Name: *r.Metadata.Name, Namespace: r.Metadata.Namespace},
-		Data:       r.Config,
-	}
-
-	cmJson, err := json.Marshal(c.Data)
+func (cm *CM) BuildConfigMap(r models.XAppConfig) (string, error) {
+	configJson, err := json.Marshal(r.Config)
 	if err != nil {
 		appmgr.Logger.Info("Config marshalling failed: %v", err)
-		return
+		return "", err
 	}
 
-	cmFile := viper.GetString("xapp.tmpConfig")
-	err = ioutil.WriteFile(cmFile, cmJson, 0644)
+	cmContent, err := cm.ReadConfigmap(*r.Metadata.XappName, *r.Metadata.Namespace)
 	if err != nil {
-		appmgr.Logger.Info("WriteFile failed: %v", err)
-		return
+		return "", err
 	}
 
-	cmd := " create configmap -n %s %s --from-file=%s -o json --dry-run | kubectl %s -f -"
-	args := fmt.Sprintf(cmd, r.Metadata.Namespace, r.Metadata.ConfigName, cmFile, action)
-	_, err = util.KubectlExec(args)
-	if err != nil {
-		return
-	}
-	appmgr.Logger.Info("Configmap changes done!")
-
-	return
-}
-
-func (cm *CM) GetConfigMap(m models.XappDescriptor, c *interface{}) (err error) {
-	return cm.ReadConfigMap(cm.GetConfigMapName(*m.XappName, m.Namespace), m.Namespace, c)
-}
-
-func (cm *CM) CreateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
-	if errList, err = cm.Validate(r); err != nil {
-		return
-	}
-	err = cm.ApplyConfigMap(r, "create")
-	return
-}
-
-func (cm *CM) UpdateConfigMap(r models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
-	if errList, err = cm.Validate(r); err != nil {
-		return
-	}
-
-	// Re-create the configmap with the new parameters
-	err = cm.ApplyConfigMap(r, "apply")
-	return
-}
-
-func (cm *CM) DeleteConfigMap(r models.ConfigMetadata) (c interface{}, err error) {
-	err = cm.ReadConfigMap(r.ConfigName, r.Namespace, &c)
+	v, err := cm.ParseJson(cmContent)
 	if err == nil {
-		args := fmt.Sprintf(" delete configmap --namespace=%s %s", r.Namespace, r.ConfigName)
-		_, err = util.KubectlExec(args)
+		v.Set("controls", fastjson.MustParse(string(configJson)))
+		fmt.Println(v.String())
+		return v.String(), nil
 	}
-	return
+
+	return "", err
 }
 
-func (cm *CM) PurgeConfigMap(m models.XappDescriptor) (c interface{}, err error) {
-	md := models.ConfigMetadata{Name: m.XappName, Namespace: m.Namespace, ConfigName: cm.GetConfigMapName(*m.XappName, m.Namespace)}
-
-	return cm.DeleteConfigMap(md)
-}
-
-func (cm *CM) RestoreConfigMap(m models.XappDescriptor, c interface{}) (err error) {
-	md := &models.ConfigMetadata{Name: m.XappName, Namespace: m.Namespace, ConfigName: cm.GetConfigMapName(*m.XappName, m.Namespace)}
-	time.Sleep(time.Duration(10 * time.Second))
-
-	return cm.ApplyConfigMap(models.XAppConfig{Metadata: md, Config: c}, "create")
-}
-
-func (cm *CM) GetNamesFromHelmRepo() (names []string) {
-	rname := viper.GetString("helm.repo-name")
-
-	cmdArgs := strings.Join([]string{"search ", rname}, "")
-	out, err := util.HelmExec(cmdArgs)
+func (cm *CM) ParseJson(dsContent string) (*fastjson.Value, error) {
+	var p fastjson.Parser
+	v, err := p.Parse(dsContent)
 	if err != nil {
-		return
+		appmgr.Logger.Info("fastjson.Parser failed: %v", err)
 	}
-
-	re := regexp.MustCompile(rname + `/.*`)
-	result := re.FindAllStringSubmatch(string(out), -1)
-	if result != nil {
-		var tmp string
-		for _, v := range result {
-			fmt.Sscanf(v[0], "%s", &tmp)
-			names = append(names, strings.Split(tmp, "/")[1])
-		}
-	}
-	return names
+	return v, err
 }
 
-func (cm *CM) Validate(req models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
-	c := models.XAppConfig{}
-	err = cm.ReadSchema(*req.Metadata.Name, &c)
+
+func (cm *CM) GenerateJSONFile(jsonString string) error {
+	cmJson, err := json.RawMessage(jsonString).MarshalJSON()
 	if err != nil {
-		appmgr.Logger.Info("No schema file found for '%s', aborting ...", *req.Metadata.Name)
-		return
+		appmgr.Logger.Error("Config marshalling failed: %v", err)
+		return err
 	}
-	return cm.doValidate(c.Descriptor, req.Config)
-}
 
-func (cm *CM) doValidate(schema, cfg interface{}) (errList models.ConfigValidationErrors, err error) {
-	schemaLoader := gojsonschema.NewGoLoader(schema)
-	documentLoader := gojsonschema.NewGoLoader(cfg)
-
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	err = ioutil.WriteFile(viper.GetString("xapp.tmpConfig"), cmJson, 0644)
 	if err != nil {
-		appmgr.Logger.Info("Validation failed: %v", err)
-		return
+		appmgr.Logger.Error("WriteFile failed: %v", err)
+		return err
 	}
 
-	if result.Valid() == false {
-		appmgr.Logger.Info("The document is not valid, Errors: %v", result.Errors())
-		for _, desc := range result.Errors() {
-			field := desc.Field()
-			validationError := desc.Description()
-			errList = append(errList, &models.ConfigValidationError{Field: &field, Error: &validationError})
-		}
-		return errList, errors.New("Validation failed!")
-	}
-	return
+	return nil
 }
 
 func (cm *CM) ReadFile(name string, data interface{}) (err error) {
@@ -252,6 +170,19 @@ func (cm *CM) ReadFile(name string, data interface{}) (err error) {
 	}
 
 	return
+}
+
+func (cm *CM) ReadConfigmap(name string, ns string) (string, error) {
+	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, cm.GetConfigMapName(name, ns))
+	out, err := util.KubectlExec(args)
+	return string(out), err
+}
+
+func (cm *CM) ReplaceConfigMap(name, ns string) (error) {
+	cmd := " create configmap -n %s %s --from-file=%s -o json --dry-run | kubectl replace -f -"
+	args := fmt.Sprintf(cmd, ns, cm.GetConfigMapName(name, ns), viper.GetString("xapp.tmpConfig"))
+	_, err := util.KubectlExec(args)
+	return err
 }
 
 func (cm *CM) FetchChart(name string) (err error) {
@@ -283,9 +214,11 @@ func (cm *CM) GetRtmData(name string) (msgs appmgr.RtmData) {
 	for _, m := range v.GetArray("rmr", "txMessages") {
 		msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
 	}
+
 	for _, m := range v.GetArray("rmr", "rxMessages") {
 		msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
 	}
+
 	for _, m := range v.GetArray("rmr", "policies") {
 		if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
 			msgs.Policies = append(msgs.Policies, int64(val))
@@ -309,4 +242,60 @@ func (cm *CM) GetNamespace(ns string) string {
 		ns = "ricxapp"
 	}
 	return ns
+}
+
+func (cm *CM) GetNamesFromHelmRepo() (names []string) {
+	rname := viper.GetString("helm.repo-name")
+
+	cmdArgs := strings.Join([]string{"search ", rname}, "")
+	out, err := util.HelmExec(cmdArgs)
+	if err != nil {
+		return
+	}
+
+	re := regexp.MustCompile(rname + `/.*`)
+	result := re.FindAllStringSubmatch(string(out), -1)
+	if result != nil {
+		var tmp string
+		for _, v := range result {
+			fmt.Sscanf(v[0], "%s", &tmp)
+			names = append(names, strings.Split(tmp, "/")[1])
+		}
+	}
+	return names
+}
+
+// Configmap validation
+func (cm *CM) Validate(req models.XAppConfig) (errList models.ConfigValidationErrors, err error) {
+	var desc interface{}
+	err = cm.ReadSchema(*req.Metadata.XappName, &desc)
+	if err != nil {
+		appmgr.Logger.Info("No schema file found for '%s', aborting ...", *req.Metadata.XappName)
+		return
+	}
+	return cm.doValidate(desc, req.Config)
+}
+
+func (cm *CM) doValidate(schema, cfg interface{}) (errList models.ConfigValidationErrors, err error) {
+	schemaLoader := gojsonschema.NewGoLoader(schema)
+	documentLoader := gojsonschema.NewGoLoader(cfg)
+
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		appmgr.Logger.Info("Validation failed: %v", err)
+		return
+	}
+
+	if result.Valid() == false {
+		appmgr.Logger.Info("The document is not valid, Errors: %v", result.Errors())
+		for _, desc := range result.Errors() {
+			field := desc.Field()
+			validationError := desc.Description()
+			errList = append(errList, &models.ConfigValidationError{Field: &field, Error: &validationError})
+		}
+		return errList, errors.New("Validation failed!")
+	}
+	appmgr.Logger.Info("Config validated successfully!")
+
+	return
 }

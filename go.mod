@@ -6,6 +6,7 @@ require (
 	gerrit.o-ran-sc.org/r/com/golog v0.0.1
 	gerrit.oran-osc.org/r/ric-plt/sdlgo v0.0.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/RaveNoX/go-jsonmerge v1.0.0
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/errors v0.19.2
