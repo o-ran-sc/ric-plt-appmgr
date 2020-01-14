@@ -85,28 +85,25 @@ func (h *Helm) Init() (out []byte, err error) {
 
 func (h *Helm) AddRepo() (out []byte, err error) {
 	// Get helm repo user name and password from files mounted by secret object
-	credFile, err := ioutil.ReadFile(viper.GetString("helm.helm-username-file"))
+	username, err := ioutil.ReadFile(viper.GetString("helm.helm-username-file"))
 	if err != nil {
 		appmgr.Logger.Info("helm_repo_username ReadFile failed: %v", err.Error())
 		return
 	}
-	username := " --username " + string(credFile)
 
-	credFile, err = ioutil.ReadFile(viper.GetString("helm.helm-password-file"))
+	password, err := ioutil.ReadFile(viper.GetString("helm.helm-password-file"))
 	if err != nil {
 		appmgr.Logger.Info("helm_repo_password ReadFile failed: %v", err.Error())
 		return
 	}
-	pwd := " --password " + string(credFile)
 
-	rname := viper.GetString("helm.repo-name")
-	repo := viper.GetString("helm.repo")
+	repoArgs := fmt.Sprintf(" %s %s ", viper.GetString("helm.repo-name"), viper.GetString("helm.repo"))
+	credentials := fmt.Sprintf(" --username %s --password %s", string(username), string(password))
 
-	return util.HelmExec(strings.Join([]string{"repo add ", rname, " ", repo, username, pwd}, ""))
+	return util.HelmExec(strings.Join([]string{"repo add ", repoArgs, credentials}, ""))
 }
 
 func (h *Helm) Install(m models.XappDescriptor) (xapp models.Xapp, err error) {
-	var c interface{}
 	m.Namespace = h.cm.GetNamespace(m.Namespace)
 
 	out, err := h.Run(strings.Join([]string{"repo update "}, ""))
@@ -114,28 +111,9 @@ func (h *Helm) Install(m models.XappDescriptor) (xapp models.Xapp, err error) {
 		return
 	}
 
-	if err = h.cm.GetConfigMap(m, &c); err != nil {
-		out, err = h.Run(h.GetInstallArgs(m, false))
-		if err != nil {
-			return
-		}
-		return h.ParseStatus(*m.XappName, string(out))
-	}
-
-	// ConfigMap exists, try to override
-	out, err = h.Run(h.GetInstallArgs(m, true))
-	if err == nil {
-		return h.ParseStatus(*m.XappName, string(out))
-	}
-
-	c, cmErr := h.cm.PurgeConfigMap(m)
 	out, err = h.Run(h.GetInstallArgs(m, false))
 	if err != nil {
 		return
-	}
-
-	if cmErr == nil {
-		cmErr = h.cm.RestoreConfigMap(m, c)
 	}
 	return h.ParseStatus(*m.XappName, string(out))
 }
@@ -308,7 +286,8 @@ func (h *Helm) ParseStatus(name string, out string) (xapp models.Xapp, err error
 func (h *Helm) parseAllStatus(names []string) (xapps models.AllDeployedXapps, err error) {
 	xapps = models.AllDeployedXapps{}
 	for _, name := range names {
-		err := h.cm.ReadSchema(name, &models.XAppConfig{})
+		var desc interface{}
+		err := h.cm.ReadSchema(name, &desc)
 		if err != nil {
 			continue
 		}
@@ -333,19 +312,19 @@ func (h *Helm) AddTillerEnv() (err error) {
 }
 
 func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args string) {
-	args = args + " --namespace=" + x.Namespace
+	args = fmt.Sprintf("%s --namespace=%s", args, x.Namespace)
 	if x.HelmVersion != "" {
-		args = args + " --version=" + x.HelmVersion
+		args = fmt.Sprintf("%s --version=%s", args, x.HelmVersion)
 	}
 
 	if x.ReleaseName != "" {
-		args = args + " --name=" + x.ReleaseName
+		args = fmt.Sprintf("%s --name=%s", args, x.ReleaseName)
 	} else {
-		args = args + " --name=" + *x.XappName
+		args = fmt.Sprintf("%s --name=%s", args, *x.XappName)
 	}
 
 	if cmOverride == true {
-		args = args + " --set ricapp.appconfig.override=" + *x.XappName + "-appconfig"
+		args = fmt.Sprintf("%s ---set ricapp.appconfig.override=%s-appconfig", args, *x.XappName)
 	}
 
 	if x.OverrideFile != nil {

@@ -20,7 +20,6 @@
 package restful
 
 import (
-	//"github.com/spf13/viper"
 	"log"
 	"os"
 	"time"
@@ -77,7 +76,8 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 		func(params health.GetHealthAliveParams) middleware.Responder {
 			return health.NewGetHealthAliveOK()
 		})
-	api.HealthGetHealthReadyHandler = health.GetHealthReadyHandlerFunc(
+
+		api.HealthGetHealthReadyHandler = health.GetHealthReadyHandlerFunc(
 		func(params health.GetHealthReadyParams) middleware.Responder {
 			return health.NewGetHealthReadyOK()
 		})
@@ -87,6 +87,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 		func(params operations.GetSubscriptionsParams) middleware.Responder {
 			return operations.NewGetSubscriptionsOK().WithPayload(r.rh.GetAllSubscriptions())
 		})
+
 	api.GetSubscriptionByIDHandler = operations.GetSubscriptionByIDHandlerFunc(
 		func(params operations.GetSubscriptionByIDParams) middleware.Responder {
 			if result, found := r.rh.GetSubscriptionById(params.SubscriptionID); found {
@@ -94,10 +95,12 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return operations.NewGetSubscriptionByIDNotFound()
 		})
+
 	api.AddSubscriptionHandler = operations.AddSubscriptionHandlerFunc(
 		func(params operations.AddSubscriptionParams) middleware.Responder {
 			return operations.NewAddSubscriptionCreated().WithPayload(r.rh.AddSubscription(*params.SubscriptionRequest))
 		})
+
 	api.ModifySubscriptionHandler = operations.ModifySubscriptionHandlerFunc(
 		func(params operations.ModifySubscriptionParams) middleware.Responder {
 			if _, ok := r.rh.ModifySubscription(params.SubscriptionID, *params.SubscriptionRequest); ok {
@@ -105,6 +108,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return operations.NewModifySubscriptionBadRequest()
 		})
+
 	api.DeleteSubscriptionHandler = operations.DeleteSubscriptionHandlerFunc(
 		func(params operations.DeleteSubscriptionParams) middleware.Responder {
 			if _, ok := r.rh.DeleteSubscription(params.SubscriptionID); ok {
@@ -121,6 +125,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return xapp.NewGetAllXappsInternalServerError()
 		})
+
 	api.XappListAllXappsHandler = xapp.ListAllXappsHandlerFunc(
 		func(params xapp.ListAllXappsParams) middleware.Responder {
 			if result := r.helm.SearchAll(); err == nil {
@@ -128,6 +133,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return xapp.NewListAllXappsInternalServerError()
 		})
+
 	api.XappGetXappByNameHandler = xapp.GetXappByNameHandlerFunc(
 		func(params xapp.GetXappByNameParams) middleware.Responder {
 			if result, err := r.helm.Status(params.XAppName); err == nil {
@@ -135,6 +141,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return xapp.NewGetXappByNameNotFound()
 		})
+
 	api.XappGetXappInstanceByNameHandler = xapp.GetXappInstanceByNameHandlerFunc(
 		func(params xapp.GetXappInstanceByNameParams) middleware.Responder {
 			if result, err := r.helm.Status(params.XAppName); err == nil {
@@ -146,6 +153,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return xapp.NewGetXappInstanceByNameNotFound()
 		})
+
 	api.XappDeployXappHandler = xapp.DeployXappHandlerFunc(
 		func(params xapp.DeployXappParams) middleware.Responder {
 			if result, err := r.helm.Install(*params.XappDescriptor); err == nil {
@@ -154,6 +162,7 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			return xapp.NewUndeployXappInternalServerError()
 		})
+
 	api.XappUndeployXappHandler = xapp.UndeployXappHandlerFunc(
 		func(params xapp.UndeployXappParams) middleware.Responder {
 			if result, err := r.helm.Delete(params.XAppName); err == nil {
@@ -166,25 +175,18 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 	// URL: /ric/v1/config
 	api.XappGetAllXappConfigHandler = xapp.GetAllXappConfigHandlerFunc(
 		func(params xapp.GetAllXappConfigParams) middleware.Responder {
-			return xapp.NewGetAllXappConfigOK().WithPayload(r.cm.UploadConfig())
+			return xapp.NewGetAllXappConfigOK().WithPayload(r.cm.UploadConfigAll())
 		})
-	api.XappCreateXappConfigHandler = xapp.CreateXappConfigHandlerFunc(
-		func(params xapp.CreateXappConfigParams) middleware.Responder {
-			result, err := r.cm.CreateConfigMap(*params.XAppConfig)
-			if err == nil {
-				if err.Error() != "Validation failed!" {
-					return xapp.NewCreateXappConfigInternalServerError()
-				} else {
-					return xapp.NewCreateXappConfigUnprocessableEntity()
-				}
-			}
-			r.rh.PublishSubscription(models.Xapp{}, models.EventTypeCreated)
-			return xapp.NewCreateXappConfigCreated().WithPayload(result)
+
+	api.XappGetConfigElementHandler = xapp.GetConfigElementHandlerFunc(
+		func(params xapp.GetConfigElementParams) middleware.Responder {
+			return xapp.NewGetConfigElementOK().WithPayload(r.cm.UploadConfigElement(params.Element))
 		})
+
 	api.XappModifyXappConfigHandler = xapp.ModifyXappConfigHandlerFunc(
 		func(params xapp.ModifyXappConfigParams) middleware.Responder {
 			result, err := r.cm.UpdateConfigMap(*params.XAppConfig)
-			if err == nil {
+			if err != nil {
 				if err.Error() != "Validation failed!" {
 					return xapp.NewModifyXappConfigInternalServerError()
 				} else {
@@ -193,25 +195,6 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			}
 			r.rh.PublishSubscription(models.Xapp{}, models.EventTypeModified)
 			return xapp.NewModifyXappConfigOK().WithPayload(result)
-		})
-	api.XappDeleteXappConfigHandler = xapp.DeleteXappConfigHandlerFunc(
-		func(params xapp.DeleteXappConfigParams) middleware.Responder {
-			_, err := r.cm.DeleteConfigMap(*params.ConfigMetadata)
-			if err == nil {
-				return xapp.NewDeleteXappConfigInternalServerError()
-			}
-			r.rh.PublishSubscription(models.Xapp{}, models.EventTypeDeleted)
-			return xapp.NewDeleteXappConfigNoContent()
-		})
-
-	// LCM: /xapps/{xAppName}/instances/{xAppInstanceName}/stop/start
-	api.XappStartXappInstanceByNameHandler = xapp.StartXappInstanceByNameHandlerFunc(
-		func(params xapp.StartXappInstanceByNameParams) middleware.Responder {
-			return xapp.NewStartXappInstanceByNameOK()
-		})
-	api.XappStopXappInstanceByNameHandler = xapp.StopXappInstanceByNameHandlerFunc(
-		func(params xapp.StopXappInstanceByNameParams) middleware.Responder {
-			return xapp.NewStopXappInstanceByNameOK()
 		})
 
 	return api
@@ -232,11 +215,11 @@ func (r *Restful) PublishXappCreateEvent(params xapp.DeployXappParams) {
 	}
 
 	for i := 0; i < 5; i++ {
+		time.Sleep(time.Duration(5) * time.Second)
 		if result, _ := r.helm.Status(name); result.Instances != nil {
 			r.rh.PublishSubscription(result, models.EventTypeDeployed)
 			break
 		}
-		time.Sleep(time.Duration(5) * time.Second)
 	}
 }
 

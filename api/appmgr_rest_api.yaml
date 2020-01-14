@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   description: This is a draft API for RIC appmgr
-  version: 0.2.0
+  version: 0.3.3
   title: RIC appmgr
   license:
     name: Apache 2.0
@@ -158,89 +158,7 @@ paths:
           description: Xapp not found
         '500':
           description: Internal error
-  /xapps/{xAppName}/instances/{xAppInstanceName}/start:
-    put:
-      summary: Start given xapp instance
-      tags:
-        - xapp
-      operationId: startXappInstanceByName
-      produces:
-        - application/json
-      parameters:
-        - name: xAppName
-          in: path
-          description: Name of xApp
-          required: true
-          type: string
-        - name: xAppInstanceName
-          in: path
-          description: Name of xApp instance to get information
-          required: true
-          type: string
-      responses:
-        '200':
-          description: successful operation
-        '400':
-          description: Invalid name supplied
-        '404':
-          description: Xapp not found
-        '500':
-          description: Internal error
-  /xapps/{xAppName}/instances/{xAppInstanceName}/stop:
-    put:
-      summary: Stop given xapp instance
-      tags:
-        - xapp
-      operationId: stopXappInstanceByName
-      produces:
-        - application/json
-      parameters:
-        - name: xAppName
-          in: path
-          description: Name of xApp
-          required: true
-          type: string
-        - name: xAppInstanceName
-          in: path
-          description: Name of xApp instance to get information
-          required: true
-          type: string
-      responses:
-        '200':
-          description: successful operation
-        '400':
-          description: Invalid name supplied
-        '404':
-          description: Xapp not found
-        '500':
-          description: Internal error
   /config:
-    post:
-      summary: Create xApp config
-      tags:
-        - xapp
-      operationId: createXappConfig
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - name: XAppConfig
-          in: body
-          description: xApp config
-          schema:
-            $ref: '#/definitions/XAppConfig'
-      responses:
-        '201':
-          description: xApp config successfully created
-          schema:
-            $ref: '#/definitions/ConfigValidationErrors'
-        '400':
-          description: Invalid input
-        '422':
-          description: Validation of configuration failed
-        '500':
-          description: Internal error
     put:
       summary: Modify xApp config
       tags:
@@ -281,43 +199,25 @@ paths:
             $ref: '#/definitions/AllXappConfig'
         '500':
           description: Internal error
-    delete:
-      summary: Delete xApp configuration
-      tags:
-        - xapp
-      operationId: deleteXappConfig
-      parameters:
-        - name: ConfigMetadata
-          in: body
-          description: xApp configuration information
-          schema:
-            $ref: '#/definitions/ConfigMetadata'
-      responses:
-        '204':
-          description: Successful deletion of xApp config
-        '400':
-          description: Invalid parameters supplied
-        '500':
-          description: Internal error
-  /config/{configName}:
+  /config/{element}:
     get:
-      summary: Returns the configuration of a single xapp
+      summary: Returns the given element of the configuration
       tags:
         - xapp
-      operationId: getXappConfig
+      operationId: GetConfigElement
       produces:
         - application/json
       parameters:
-        - name: configName
+        - name: element
           in: path
-          description: Name of xApp
+          description: Name of configuration element
           required: true
           type: string
       responses:
         '200':
-          description: successful query of xApp config
+          description: successful query of config elements
           schema:
-            $ref: '#/definitions/XAppConfig'
+            $ref: '#/definitions/AllXappConfig'
         '500':
           description: Internal error
   /subscriptions:
@@ -522,14 +422,12 @@ definitions:
   ConfigMetadata:
     type: object
     required:
-      - name
+      - xappName
+      - namespace
     properties:
-      name:
+      xappName:
         type: string
         description: Name of the xApp
-      configName:
-        type: string
-        description: Name of the config map
       namespace:
         type: string
         description: Name of the namespace
@@ -553,14 +451,10 @@ definitions:
     type: object
     required:
       - metadata
-      - descriptor
       - config
     properties:
       metadata:
         $ref: '#/definitions/ConfigMetadata'
-      descriptor:
-        type: object
-        description: Schema of configuration in JSON format
       config:
         type: object
         description: Configuration in JSON format
