@@ -22,14 +22,14 @@ package resthooks
 import (
 	"bytes"
 	"encoding/json"
-	sdl "gerrit.oran-osc.org/r/ric-plt/sdlgo"
+	sdl "gerrit.o-ran-sc.org/r/ric-plt/sdlgo"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/segmentio/ksuid"
 	"net/http"
 	"time"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 )
 
 func NewResthook(restoreData bool) *Resthook {

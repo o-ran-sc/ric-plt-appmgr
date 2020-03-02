@@ -21,7 +21,7 @@ package appmgr
 
 import (
 	"flag"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/logger"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/logger"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"log"
@@ -68,5 +68,5 @@ func loadConfig() {
 func Init() {
 	loadConfig()
 	Logger = logger.NewLogger("appmgr")
-	Logger.SetMdc("xm", "0.3.3")
+	Logger.SetMdc("xm", "0.4.1")
 }

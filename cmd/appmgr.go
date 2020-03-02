@@ -20,8 +20,9 @@
 package main
 
 import (
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restful"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restful"
+	"time"
 )
 
 func main() {

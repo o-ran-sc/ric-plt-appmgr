@@ -1,10 +1,13 @@
-module gerrit.oran-osc.org/r/ric-plt/appmgr
+module gerrit.o-ran-sc.org/r/ric-plt/appmgr
 
 go 1.12
 
+replace gerrit.o-ran-sc.org/r/ric-plt/sdlgo => gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.5.2
+
+replace gerrit.o-ran-sc.org/r/com/golog => gerrit.o-ran-sc.org/r/com/golog.git v0.0.1
+
 require (
 	gerrit.o-ran-sc.org/r/com/golog v0.0.1
-	gerrit.oran-osc.org/r/ric-plt/sdlgo v0.0.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/RaveNoX/go-jsonmerge v1.0.0
 	github.com/fsnotify/fsnotify v1.4.7
@@ -26,9 +29,7 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0
+	golang.org/x/crypto v0.0.0-20190617133340-57b3e21c3d56 // indirect
 	golang.org/x/net v0.0.0-20190827160401-ba9fcec4b297
+	golang.org/x/tools v0.0.0-20190617190820-da514acc4774 // indirect
 )
-
-replace gerrit.oran-osc.org/r/ric-plt/sdlgo => gerrit.oran-osc.org/r/ric-plt/sdlgo.git v0.0.1
-
-replace gerrit.o-ran-sc.org/r/com/golog => gerrit.o-ran-sc.org/r/com/golog.git v0.0.1

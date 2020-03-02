@@ -22,10 +22,10 @@ package restful
 import (
 	"net/http"
 
-	cfgmap "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/cm"
-	helmer "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/helm"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi/operations"
-	resthook "gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/resthooks"
+	cfgmap "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/cm"
+	helmer "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/helm"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restapi/operations"
+	resthook "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/resthooks"
 )
 
 type CmdOptions struct {
