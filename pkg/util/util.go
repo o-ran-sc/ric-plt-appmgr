@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
 )
 
 var execCommand = exec.Command

@@ -30,7 +30,7 @@ RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-
     && rm -rf linux-amd64
 
 # Install kubectl from Docker Hub
-COPY --from=lachlanevenson/k8s-kubectl:v1.10.3 /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=lachlanevenson/k8s-kubectl:v1.16.0 /usr/local/bin/kubectl /usr/local/bin/kubectl
 
 ENV GOPATH="/go"
 

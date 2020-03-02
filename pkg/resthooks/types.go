@@ -20,11 +20,11 @@
 package resthooks
 
 import (
-	sdl "gerrit.oran-osc.org/r/ric-plt/sdlgo"
+	sdl "gerrit.o-ran-sc.org/r/ric-plt/sdlgo"
 	cmap "github.com/orcaman/concurrent-map"
 	"net/http"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 )
 
 type SubscriptionInfo struct {

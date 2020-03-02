@@ -20,7 +20,7 @@
 package appmgr
 
 import (
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 )
 
 type ConfigMap struct {

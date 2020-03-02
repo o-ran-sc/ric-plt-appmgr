@@ -24,8 +24,8 @@ import (
 	"os"
 	"testing"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 )
 
 var rh *Resthook

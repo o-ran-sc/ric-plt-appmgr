@@ -26,9 +26,9 @@ import (
 	"reflect"
 	"testing"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/util"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/util"
 )
 
 var helmSearchOutput = `

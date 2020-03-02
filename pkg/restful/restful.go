@@ -24,18 +24,18 @@ import (
 	"os"
 	"time"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/models"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi/operations"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi/operations/health"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/restapi/operations/xapp"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restapi"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restapi/operations"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restapi/operations/health"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/restapi/operations/xapp"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime/middleware"
 
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/appmgr"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/cm"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/helm"
-	"gerrit.oran-osc.org/r/ric-plt/appmgr/pkg/resthooks"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/cm"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/helm"
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/resthooks"
 )
 
 func NewRestful() *Restful {
