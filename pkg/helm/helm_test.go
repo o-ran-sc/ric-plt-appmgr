@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 
 func TestHelmStatus(t *testing.T) {
 	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte("10.102.184.212"), nil
+		return []byte("service-ricxapp-dummy-xapp-rmr    10.244.0.98:4560,10.244.0.98:4561   47m"), nil
 	}
 	xapp, err := NewHelm().ParseStatus("dummy-xapp", helmStatusOutput)
 	if err != nil {
@@ -104,7 +104,7 @@ func TestHelmStatus(t *testing.T) {
 	}
 
 	if x.Instances[0].IP != xapp.Instances[0].IP || x.Instances[0].Port != xapp.Instances[0].Port {
-		t.Errorf("\n1:%v 2:%v", x.Instances[0].IP, xapp.Instances[0].IP)
+		t.Errorf("\n%v - %v, %v - %v", x.Instances[0].IP, xapp.Instances[0].IP, x.Instances[0].Port, xapp.Instances[0].Port)
 	}
 }
 

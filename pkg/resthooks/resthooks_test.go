@@ -50,7 +50,7 @@ func TestAddSubscriptionSuccess(t *testing.T) {
 func TestAddSubscriptionExists(t *testing.T) {
 	resp := rh.AddSubscription(CreateSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook"))
 	assert.Equal(t, resp.Version, int64(0))
-	assert.Equal(t, resp.EventType, models.EventType(""))
+	assert.Equal(t, resp.EventType, models.EventTypeCreated)
 }
 
 func TestDeletesubscriptionSuccess(t *testing.T) {

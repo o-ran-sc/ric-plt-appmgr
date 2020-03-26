@@ -214,15 +214,21 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 	return
 }
 
-func (h *Helm) GetEndpointInfo(name string) (ip string, port int) {
+func (h *Helm) GetEndpointInfo(name string) (svc string, port int) {
 	ns := h.cm.GetNamespace("")
-	args := fmt.Sprintf(" get endpoints -o=jsonpath='{.subsets[*].addresses[*].ip}' service-%s-%s-rmr -n %s", ns, name, ns)
+	args := fmt.Sprintf(" get endpoints -n %s | grep %s-rmr ", ns, name)
 	out, err := util.KubectlExec(args)
 	if err != nil {
 		return
 	}
 	appmgr.Logger.Info("Endpoint IP address of %s: %s", name, string(out))
-	return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
+
+	s := strings.ReplaceAll(strings.ReplaceAll(string(out), ",", " "), ":", " ")
+	var ip string
+	fmt.Sscanf(s, "%s %s %d", &svc, &ip, &port)
+
+	appmgr.Logger.Info("service=%s.%s ip=%s port=%d", svc, ns, ip, port)
+	return fmt.Sprintf("%s.%s", svc, ns), port
 }
 
 func (h *Helm) GetNames(out string) (names []string, err error) {
