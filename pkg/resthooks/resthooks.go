@@ -51,7 +51,8 @@ func (rh *Resthook) AddSubscription(sr models.SubscriptionRequest) *models.Subsc
 		r := v.Val.(SubscriptionInfo).req
 		if *r.Data.TargetURL == *sr.Data.TargetURL && r.Data.EventType == sr.Data.EventType {
 			appmgr.Logger.Info("Similar subscription already exists!")
-			return &models.SubscriptionResponse{}
+			resp := v.Val.(SubscriptionInfo).resp
+			return &resp
 		}
 	}
 

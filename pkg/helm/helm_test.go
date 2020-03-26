@@ -73,7 +73,53 @@ Releases:
   Namespace: default
   Revision: 1
   Status: DEPLOYED
-  Updated: Sun Mar 24 07:17:00 2019`
+  Updated: Sun Mar 24 07:17:00 2019
+  `
+
+var helmServiceOutput = `{
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+        "creationTimestamp": "2020-03-31T12:27:12Z",
+        "labels": {
+            "app": "ricxapp-dummy-xapp",
+            "chart": "dummy-xapp-0.0.4",
+            "heritage": "Tiller",
+            "release": "dummy-xapp"
+        },
+        "name": "service-ricxapp-dummy-xapp-rmr",
+        "namespace": "ricxapp",
+        "resourceVersion": "4423380",
+        "selfLink": "/api/v1/namespaces/ricxapp/services/service-ricxapp-dummy-xapp-rmr",
+        "uid": "2254b77d-7dd6-43e0-beff-3e2a7b24c89a"
+    },
+    "spec": {
+        "clusterIP": "10.98.239.107",
+        "ports": [
+            {
+                "name": "rmrdata",
+                "port": 4560,
+                "protocol": "TCP",
+                "targetPort": "rmrdata"
+            },
+            {
+                "name": "rmrroute",
+                "port": 4561,
+                "protocol": "TCP",
+                "targetPort": "rmrroute"
+            }
+        ],
+        "selector": {
+            "app": "ricxapp-dummy-xapp",
+            "release": "dummy-xapp"
+        },
+        "sessionAffinity": "None",
+        "type": "ClusterIP"
+    },
+    "status": {
+        "loadBalancer": {}
+    }
+}`
 
 // Test cases
 func TestMain(m *testing.M) {
@@ -86,7 +132,7 @@ func TestMain(m *testing.M) {
 
 func TestHelmStatus(t *testing.T) {
 	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte("10.102.184.212"), nil
+		return []byte(helmServiceOutput), nil
 	}
 	xapp, err := NewHelm().ParseStatus("dummy-xapp", helmStatusOutput)
 	if err != nil {
@@ -104,7 +150,7 @@ func TestHelmStatus(t *testing.T) {
 	}
 
 	if x.Instances[0].IP != xapp.Instances[0].IP || x.Instances[0].Port != xapp.Instances[0].Port {
-		t.Errorf("\n1:%v 2:%v", x.Instances[0].IP, xapp.Instances[0].IP)
+		t.Errorf("\n%v - %v, %v - %v", x.Instances[0].IP, xapp.Instances[0].IP, x.Instances[0].Port, xapp.Instances[0].Port)
 	}
 }
 

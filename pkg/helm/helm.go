@@ -214,15 +214,30 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 	return
 }
 
-func (h *Helm) GetEndpointInfo(name string) (ip string, port int) {
+func (h *Helm) GetEndpointInfo(name string) (svc string, port int) {
+	port = 4560 // Default
 	ns := h.cm.GetNamespace("")
-	args := fmt.Sprintf(" get endpoints -o=jsonpath='{.subsets[*].addresses[*].ip}' service-%s-%s-rmr -n %s", ns, name, ns)
+	args := fmt.Sprintf(" get service -n ricxapp service-%s-%s-rmr -o json", ns, name)
 	out, err := util.KubectlExec(args)
 	if err != nil {
-		return
+		return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
 	}
-	appmgr.Logger.Info("Endpoint IP address of %s: %s", name, string(out))
-	return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
+	appmgr.Logger.Debug("Endpoint IP address of %s: %s", name, string(out))
+
+	v, err := h.cm.ParseJson(string(out))
+	if err != nil {
+		return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
+	}
+
+	for _, p := range v.GetArray("spec", "ports") {
+		if string(p.GetStringBytes("name")) == "rmrdata" {
+			port = int(p.GetInt("port"))
+			break
+		}
+	}
+	appmgr.Logger.Info("service-%s-%s-rmr.%s %d", ns, name, ns, port)
+
+	return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), port
 }
 
 func (h *Helm) GetNames(out string) (names []string, err error) {
