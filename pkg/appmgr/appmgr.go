@@ -68,5 +68,5 @@ func loadConfig() {
 func Init() {
 	loadConfig()
 	Logger = logger.NewLogger("appmgr")
-	Logger.SetMdc("xm", "0.4.1")
+	Logger.SetMdc("xm", "0.4.3")
 }
