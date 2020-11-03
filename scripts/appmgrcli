@@ -113,6 +113,10 @@ if (exists $ENV{"APPMGR_PORT"}) {
 
 my $configName = "";
 my $namespace = "ricxapp";
+# Check for environment override
+if (exists $ENV{"XAPP_NAMESPACE"}) {
+   $namespace=$ENV{"XAPP_NAMESPACE"};
+}
 my $releaseName = "";
 my $helmVersion = "0.0.1";
 my $overrideFile = "";

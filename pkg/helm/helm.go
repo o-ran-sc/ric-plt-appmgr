@@ -217,7 +217,7 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 func (h *Helm) GetEndpointInfo(name string) (svc string, port int) {
 	port = 4560 // Default
 	ns := h.cm.GetNamespace("")
-	args := fmt.Sprintf(" get service -n ricxapp service-%s-%s-rmr -o json", ns, name)
+	args := fmt.Sprintf(" get service -n %s service-%s-%s-rmr -o json", ns, ns, name)
 	out, err := util.KubectlExec(args)
 	if err != nil {
 		return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
