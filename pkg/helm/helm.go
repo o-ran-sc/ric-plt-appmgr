@@ -41,7 +41,18 @@ type Helm struct {
 	cm       *cm.CM
 }
 
+func GetHelmVersion() {
+	var temp string
+	temp = os.Getenv("HELMVERSION")
+        appmgr.Logger.Info("Inside new Helm")
+	temp = strings.TrimLeft(temp,"v")
+	cm.EnvHelmVersion = string(temp[0:1]) //s.TrimRight(temp, ".")
+	appmgr.Logger.Info(cm.EnvHelmVersion)
+}
+
+
 func NewHelm() *Helm {
+	GetHelmVersion()
 	return &Helm{initDone: false, cm: cm.NewCM()}
 }
 
@@ -49,7 +60,7 @@ func (h *Helm) Initialize() {
 	if h.initDone == true {
 		return
 	}
-
+        appmgr.Logger.Info("Before for of Helm init")
 	for {
 		if _, err := h.Init(); err == nil {
 			appmgr.Logger.Info("Helm init done successfully!")
@@ -57,6 +68,11 @@ func (h *Helm) Initialize() {
 		}
 		appmgr.Logger.Info("helm init failed, retyring ...")
 		time.Sleep(time.Duration(10) * time.Second)
+	}
+
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		appmgr.Logger.Info("Codintion met for HELM3")
+		util.HelmExec(strings.Join([]string{"repo add stable https://kubernetes-charts.storage.googleapis.com/ "}, ""))
 	}
 
 	for {
@@ -71,16 +87,22 @@ func (h *Helm) Initialize() {
 }
 
 func (h *Helm) Run(args string) (out []byte, err error) {
+	appmgr.Logger.Info("helm:Run")
 	return util.HelmExec(args)
 }
 
 // API functions
 func (h *Helm) Init() (out []byte, err error) {
+	appmgr.Logger.Info("Inside API function:Init")
 	if err := h.AddTillerEnv(); err != nil {
 		return out, err
 	}
 
-	return util.HelmExec(strings.Join([]string{"init -c --skip-refresh"}, ""))
+	if cm.EnvHelmVersion == cm.HELM_VERSION_2{
+		appmgr.Logger.Info("Init for Version 2")
+		return util.HelmExec(strings.Join([]string{"init -c --skip-refresh"}, ""))
+	}
+	return out, err
 }
 
 func (h *Helm) AddRepo() (out []byte, err error) {
@@ -119,7 +141,18 @@ func (h *Helm) Install(m models.XappDescriptor) (xapp models.Xapp, err error) {
 }
 
 func (h *Helm) Status(name string) (xapp models.Xapp, err error) {
-	out, err := h.Run(strings.Join([]string{"status ", name}, ""))
+	var command string
+
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		names  := h.cm.GetNamespace("")
+		command = strings.Join([]string{"status ", name," --namespace ", names}, "")
+		appmgr.Logger.Info ("Status: Version 3")
+	}else {
+		command = strings.Join([]string{"status ", name}, "")
+		appmgr.Logger.Info ("Status: Version 2")
+	}
+
+	out, err := h.Run(command)
 	if err != nil {
 		appmgr.Logger.Info("Getting xapps status: %v", err.Error())
 		return
@@ -155,12 +188,21 @@ func (h *Helm) SearchAll() models.AllDeployableXapps {
 
 func (h *Helm) Delete(name string) (xapp models.Xapp, err error) {
 	xapp, err = h.Status(name)
+	var command string = ""
+	ns := h.cm.GetNamespace("")
 	if err != nil {
 		appmgr.Logger.Info("Fetching xapp status failed: %v", err.Error())
 		return
 	}
 
-	_, err = h.Run(strings.Join([]string{"del --purge ", name}, ""))
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		command = strings.Join([]string{"uninstall ", name," -n ", ns}, "")
+		appmgr.Logger.Info ("DELETE: Version 3")
+	} else {
+		command = strings.Join([]string{"del ", name}, "")
+		appmgr.Logger.Info ("DELETE: Version 2")
+	}
+	 _, err = h.Run (command)
 	return xapp, err
 }
 
@@ -178,7 +220,15 @@ func (h *Helm) Fetch(name, tarDir string) error {
 // Helper functions
 func (h *Helm) GetVersion(name string) (version string) {
 	ns := h.cm.GetNamespace("")
-	out, err := h.Run(strings.Join([]string{"list --deployed --output yaml --namespace=", ns, " ", name}, ""))
+	var command string = ""
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		command = strings.Join([]string{"list --deployed --output yaml --namespace=", ns, " ","-f ",name}, "")
+		appmgr.Logger.Info ("GetVersion: Version 3")
+	} else {
+		command = strings.Join([]string{"list --deployed --output yaml --namespace=", ns, " ", name}, "")
+		appmgr.Logger.Info ("GetVersion: Version 2")
+	}
+	out, err := h.Run(command) 
 	if err != nil {
 		return
 	}
@@ -217,7 +267,7 @@ func (h *Helm) GetAddress(out string) (ip, port string) {
 func (h *Helm) GetEndpointInfo(name string) (svc string, port int) {
 	port = 4560 // Default
 	ns := h.cm.GetNamespace("")
-	args := fmt.Sprintf(" get service -n %s service-%s-%s-rmr -o json", ns, ns, name)
+	args := fmt.Sprintf(" get service -n ricxapp service-%s-%s-rmr -o json", ns, name)
 	out, err := util.KubectlExec(args)
 	if err != nil {
 		return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
@@ -316,6 +366,7 @@ func (h *Helm) parseAllStatus(names []string) (xapps models.AllDeployedXapps, er
 }
 
 func (h *Helm) AddTillerEnv() (err error) {
+	appmgr.Logger.Info("INside Add itller unfction")
 	service := viper.GetString("helm.tiller-service")
 	namespace := viper.GetString("helm.tiller-namespace")
 	port := viper.GetString("helm.tiller-port")
@@ -332,10 +383,14 @@ func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args st
 		args = fmt.Sprintf("%s --version=%s", args, x.HelmVersion)
 	}
 
-	if x.ReleaseName != "" {
-		args = fmt.Sprintf("%s --name=%s", args, x.ReleaseName)
-	} else {
-		args = fmt.Sprintf("%s --name=%s", args, *x.XappName)
+	if cm.EnvHelmVersion == cm.HELM_VERSION_2 {
+		if x.ReleaseName != "" {
+			args = fmt.Sprintf("%s --name=%s", args, x.ReleaseName)
+		} else {
+			args = fmt.Sprintf("%s --name=%s", args, *x.XappName)
+			appmgr.Logger.Info("")
+		}
+		appmgr.Logger.Info ("GetInstallArgs: Version 2")
 	}
 
 	if cmOverride == true {
@@ -359,5 +414,13 @@ func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args st
 	if repoName == "" {
 		repoName = "helm-repo"
 	}
-	return fmt.Sprintf("install %s/%s %s", repoName, *x.XappName, args)
+
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		appmgr.Logger.Info ("GetInstallArgs last: Version 3")
+		return fmt.Sprintf("install %s %s/%s %s",*x.XappName, repoName, *x.XappName, args)
+	} else {
+		appmgr.Logger.Info ("GetInstallArgs last: Version 2")
+		return fmt.Sprintf("install %s/%s %s", repoName, *x.XappName, args)
+	}
+
 }

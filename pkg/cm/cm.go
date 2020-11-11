@@ -40,6 +40,11 @@ import (
 
 type CM struct{}
 
+const HELM_VERSION_3 = "3"
+const HELM_VERSION_2 = "2"
+var EnvHelmVersion string = ""
+
+
 func NewCM() *CM {
 	return &CM{}
 }
@@ -260,8 +265,13 @@ func (cm *CM) GetNamespace(ns string) string {
 
 func (cm *CM) GetNamesFromHelmRepo() (names []string) {
 	rname := viper.GetString("helm.repo-name")
+	var cmdArgs string = ""
+	if EnvHelmVersion == HELM_VERSION_3 {
+		cmdArgs = strings.Join([]string{"search repo ", rname}, "")
+	}else { 
+		 cmdArgs = strings.Join([]string{"search ", rname}, "")
+	}
 
-	cmdArgs := strings.Join([]string{"search ", rname}, "")
 	out, err := util.HelmExec(cmdArgs)
 	if err != nil {
 		return

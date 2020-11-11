@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"testing"
 
+	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/cm"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/util"
@@ -173,21 +174,36 @@ func TestAddTillerEnv(t *testing.T) {
 
 func TestGetInstallArgs(t *testing.T) {
 	name := "dummy-xapp"
+	var expectedArgs string = ""
+
 	x := models.XappDescriptor{XappName: &name, Namespace: "ricxapp"}
 
-	expectedArgs := "install helm-repo/dummy-xapp  --namespace=ricxapp --name=dummy-xapp"
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		expectedArgs = "install dummy-xapp helm-repo/dummy-xapp  --namespace=ricxapp"
+	}else {
+		expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --name=dummy-xapp"
+	}
 	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.HelmVersion = "1.2.3"
-	expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=dummy-xapp"
+	if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		expectedArgs = "install dummy-xapp helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3"
+	} else {
+		 expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=dummy-xapp"
+	}
 	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
 
 	x.ReleaseName = "ueec-xapp"
-	expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=ueec-xapp"
+	 if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
+		expectedArgs = "install dummy-xapp helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3"
+	} else {
+		expectedArgs = "install helm-repo/dummy-xapp  --namespace=ricxapp --version=1.2.3 --name=ueec-xapp"
+	}
+
 	if args := NewHelm().GetInstallArgs(x, false); args != expectedArgs {
 		t.Errorf("TestGetInstallArgs failed: expected %v, got %v", expectedArgs, args)
 	}
