@@ -23,20 +23,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/spf13/viper"
+	"github.com/valyala/fastjson"
+	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
-	"strings"
 	"strconv"
-	"github.com/spf13/viper"
-	"github.com/valyala/fastjson"
-	"github.com/xeipuuv/gojsonschema"
+	"strings"
 
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/util"
 )
+
+var kubeExec = util.KubectlExec
+var helmExec = util.HelmExec
 
 type CM struct{}
 
@@ -69,7 +72,7 @@ func (cm *CM) UploadConfigElement(Element string) (configList models.AllXappConf
 
 		c := models.XAppConfig{
 			Metadata: &models.ConfigMetadata{XappName: &xAppName, Namespace: &namespace},
-			Config: activeConfig,
+			Config:   activeConfig,
 		}
 		configList = append(configList, &c)
 	}
@@ -104,7 +107,7 @@ func (cm *CM) ReadSchema(name string, desc *interface{}) (err error) {
 }
 
 func (cm *CM) UpdateConfigMap(r models.XAppConfig) (models.ConfigValidationErrors, error) {
-	fmt.Printf("Configmap update: xappName=%s namespace=%s config: %v", *r.Metadata.XappName, *r.Metadata.Namespace, r.Config)
+	fmt.Printf("Configmap update: xappName=%s namespace=%s config: %v\n", *r.Metadata.XappName, *r.Metadata.Namespace, r.Config)
 	if validationErrors, err := cm.Validate(r); err != nil {
 		return validationErrors, err
 	}
@@ -153,7 +156,6 @@ func (cm *CM) ParseJson(dsContent string) (*fastjson.Value, error) {
 	return v, err
 }
 
-
 func (cm *CM) GenerateJSONFile(jsonString string) error {
 	cmJson, err := json.RawMessage(jsonString).MarshalJSON()
 	if err != nil {
@@ -188,14 +190,14 @@ func (cm *CM) ReadFile(name string, data interface{}) (err error) {
 
 func (cm *CM) ReadConfigmap(name string, ns string) (string, error) {
 	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, cm.GetConfigMapName(name, ns))
-	out, err := util.KubectlExec(args)
+	out, err := kubeExec(args)
 	return string(out), err
 }
 
-func (cm *CM) ReplaceConfigMap(name, ns string) (error) {
+func (cm *CM) ReplaceConfigMap(name, ns string) error {
 	cmd := " create configmap -n %s %s --from-file=%s -o json --dry-run | kubectl replace -f -"
 	args := fmt.Sprintf(cmd, ns, cm.GetConfigMapName(name, ns), viper.GetString("xapp.tmpConfig"))
-	_, err := util.KubectlExec(args)
+	_, err := kubeExec(args)
 	return err
 }
 
@@ -204,7 +206,7 @@ func (cm *CM) FetchChart(name string) (err error) {
 	repo := viper.GetString("helm.repo-name")
 	fetchArgs := fmt.Sprintf("--untar --untardir %s %s/%s", tarDir, repo, name)
 
-	_, err = util.HelmExec(strings.Join([]string{"fetch ", fetchArgs}, ""))
+	_, err = helmExec(strings.Join([]string{"fetch ", fetchArgs}, ""))
 	return
 }
 
@@ -213,7 +215,7 @@ func (cm *CM) GetRtmData(name string) (msgs appmgr.RtmData) {
 
 	ns := cm.GetNamespace("")
 	args := fmt.Sprintf("get configmap -o jsonpath='{.data.config-file\\.json}' -n %s %s", ns, cm.GetConfigMapName(name, ns))
-	out, err := util.KubectlExec(args)
+	out, err := kubeExec(args)
 	if err != nil {
 		return
 	}
@@ -262,7 +264,7 @@ func (cm *CM) GetNamesFromHelmRepo() (names []string) {
 	rname := viper.GetString("helm.repo-name")
 
 	cmdArgs := strings.Join([]string{"search ", rname}, "")
-	out, err := util.HelmExec(cmdArgs)
+	out, err := helmExec(cmdArgs)
 	if err != nil {
 		return
 	}

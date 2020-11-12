@@ -36,6 +36,9 @@ import (
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/util"
 )
 
+var kubeExec = util.KubectlExec
+var helmExec = util.HelmExec
+
 type Helm struct {
 	initDone bool
 	cm       *cm.CM
@@ -71,7 +74,7 @@ func (h *Helm) Initialize() {
 }
 
 func (h *Helm) Run(args string) (out []byte, err error) {
-	return util.HelmExec(args)
+	return helmExec(args)
 }
 
 // API functions
@@ -80,7 +83,7 @@ func (h *Helm) Init() (out []byte, err error) {
 		return out, err
 	}
 
-	return util.HelmExec(strings.Join([]string{"init -c --skip-refresh"}, ""))
+	return helmExec(strings.Join([]string{"init -c --skip-refresh"}, ""))
 }
 
 func (h *Helm) AddRepo() (out []byte, err error) {
@@ -100,7 +103,7 @@ func (h *Helm) AddRepo() (out []byte, err error) {
 	repoArgs := fmt.Sprintf(" %s %s ", viper.GetString("helm.repo-name"), viper.GetString("helm.repo"))
 	credentials := fmt.Sprintf(" --username %s --password %s", string(username), string(password))
 
-	return util.HelmExec(strings.Join([]string{"repo add ", repoArgs, credentials}, ""))
+	return helmExec(strings.Join([]string{"repo add ", repoArgs, credentials}, ""))
 }
 
 func (h *Helm) Install(m models.XappDescriptor) (xapp models.Xapp, err error) {
@@ -124,7 +127,6 @@ func (h *Helm) Status(name string) (xapp models.Xapp, err error) {
 		appmgr.Logger.Info("Getting xapps status: %v", err.Error())
 		return
 	}
-
 	return h.ParseStatus(name, string(out))
 }
 
@@ -218,7 +220,7 @@ func (h *Helm) GetEndpointInfo(name string) (svc string, port int) {
 	port = 4560 // Default
 	ns := h.cm.GetNamespace("")
 	args := fmt.Sprintf(" get service -n %s service-%s-%s-rmr -o json", ns, ns, name)
-	out, err := util.KubectlExec(args)
+	out, err := kubeExec(args)
 	if err != nil {
 		return fmt.Sprintf("service-%s-%s-rmr.%s", ns, name, ns), 4560
 	}
@@ -339,7 +341,7 @@ func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args st
 	}
 
 	if cmOverride == true {
-		args = fmt.Sprintf("%s ---set ricapp.appconfig.override=%s-appconfig", args, *x.XappName)
+		args = fmt.Sprintf("%s --set ricapp.appconfig.override=%s-appconfig", args, *x.XappName)
 	}
 
 	if x.OverrideFile != nil {

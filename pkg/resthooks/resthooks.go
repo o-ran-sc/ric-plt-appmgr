@@ -33,9 +33,13 @@ import (
 )
 
 func NewResthook(restoreData bool) *Resthook {
+	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()))
+}
+
+func createResthook(restoreData bool, sdlInst iSdl) *Resthook {
 	rh := &Resthook{
 		client: &http.Client{},
-		db:     sdl.NewSdlInstance("appmgr", sdl.NewDatabase()),
+		db:     sdlInst,
 	}
 
 	if restoreData {
@@ -176,7 +180,6 @@ func (rh *Resthook) retry(s SubscriptionInfo, fn func() error) error {
 func (rh *Resthook) StoreSubscriptions(m cmap.ConcurrentMap) {
 	for v := range m.Iter() {
 		s := v.Val.(SubscriptionInfo)
-
 		data, err := json.Marshal(s.req)
 		if err != nil {
 			appmgr.Logger.Error("json.marshal failed: %v ", err.Error())

@@ -1,0 +1,6 @@
+{
+  "XappName": "dummy-xapp",
+  "ReleaseName": "dummy-xapp",
+  "HelmVersion": "1.0.0",
+  "Namespace": "ricxapp"
+}

@@ -24,12 +24,33 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/util"
 )
+
+const (
+	expectedHelmSearchCmd = "search helm-repo"
+	expectedHelmFetchCmd  = `fetch --untar --untardir /tmp helm-repo/dummy-xapp`
+)
+
+var caughtKubeExecArgs []string
+var kubeExecRetOut string
+var kubeExecRetErr error
+var caughtHelmExecArgs string
+var helmExecRetOut string
+var helmExecRetErr error
+
+var expectedKubectlGetCmd []string = []string{
+	`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-anr-appconfig`,
+	`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-appmgr-appconfig`,
+	`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-dualco-appconfig`,
+	`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-reporter-appconfig`,
+	`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-uemgr-appconfig`,
+}
 
 var helmSearchOutput = `
 helm-repo/anr           0.0.1           1.0             Helm Chart for Nokia ANR (Automatic Neighbour Relation) xAPP
@@ -62,6 +83,15 @@ var kubectlConfigmapOutput = `
     }
 }
 `
+var cfgData = `{
+	"active":true,
+	"interfaceId": {
+		"globalENBId":{
+			"plmnId": "1234",
+			"eNBId":"55"
+		}
+	}
+}`
 
 type ConfigSample struct {
 	Level int
@@ -112,20 +142,181 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestGetRtmData(t *testing.T) {
+func TestUploadConfigAllSuccess(t *testing.T) {
+	var cfg interface{}
+	var expectedResult models.AllXappConfig
+	ns := "ricxapp"
+	xapps := []string{"anr", "appmgr", "dualco", "reporter", "uemgr"}
+
+	if ret := json.Unmarshal([]byte(cfgData), &cfg); ret != nil {
+		t.Errorf("UploadConfigAll Json unmarshal failed: %v", ret)
+	}
+
+	for i, _ := range xapps {
+		expectedResult = append(expectedResult,
+			&models.XAppConfig{
+				Config: cfg,
+				Metadata: &models.ConfigMetadata{
+					Namespace: &ns,
+					XappName:  &xapps[i],
+				},
+			},
+		)
+	}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	//Fake helm search success
+	helmExecRetOut = helmSearchOutput
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = strings.ReplaceAll(cfgData, "\\", "")
+
+	result := NewCM().UploadConfigAll()
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("UploadConfigAll failed: expected: %v, got: %v", expectedResult, result)
+	}
+	if caughtHelmExecArgs != expectedHelmSearchCmd {
+		t.Errorf("UploadConfigAll failed: expected: %v, got: %v", expectedHelmSearchCmd, caughtHelmExecArgs)
+	}
+	if !reflect.DeepEqual(caughtKubeExecArgs, expectedKubectlGetCmd) {
+		t.Errorf("UploadConfigAll failed: expected: %v, got: %v", expectedKubectlGetCmd, caughtKubeExecArgs)
+	}
+}
+
+func TestUploadConfigAllReturnsEmptyMapIfAllConfigMapReadsFail(t *testing.T) {
+	var expectedResult models.AllXappConfig
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	//Fake helm search success
+	helmExecRetOut = helmSearchOutput
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' failure
+	kubeExecRetErr = errors.New("some error")
+
+	result := NewCM().UploadConfigAll()
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("UploadConfigAll failed: expected: %v, got: %v", expectedResult, result)
+	}
+}
+
+func TestUploadConfigElementSuccess(t *testing.T) {
+	var cfg interface{}
+	var expectedResult models.AllXappConfig
+	ns := "ricxapp"
+	xapps := []string{"anr", "appmgr", "dualco", "reporter", "uemgr"}
+
+	if ret := json.Unmarshal([]byte(cfgData), &cfg); ret != nil {
+		t.Errorf("UploadConfigElement Json unmarshal failed: %v", ret)
+	}
+
+	for i, _ := range xapps {
+		expectedResult = append(expectedResult,
+			&models.XAppConfig{
+				Config: cfg.(map[string]interface{})["active"],
+				Metadata: &models.ConfigMetadata{
+					Namespace: &ns,
+					XappName:  &xapps[i],
+				},
+			},
+		)
+	}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	//Fake helm search success
+	helmExecRetOut = helmSearchOutput
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = strings.ReplaceAll(cfgData, "\\", "")
+
+	result := NewCM().UploadConfigElement("active")
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("UploadConfigElement failed: expected: %v, got: %v", expectedResult, result)
+	}
+	if caughtHelmExecArgs != expectedHelmSearchCmd {
+		t.Errorf("UploadConfigElement failed: expected: %v, got: %v", expectedHelmSearchCmd, caughtHelmExecArgs)
+	}
+	if !reflect.DeepEqual(caughtKubeExecArgs, expectedKubectlGetCmd) {
+		t.Errorf("UploadConfigElement failed: expected: %v, got: %v", expectedKubectlGetCmd, caughtKubeExecArgs)
+	}
+}
+
+func TestUploadConfigElementReturnsEmptyMapIfElementMissingFromConfigMap(t *testing.T) {
+	var expectedResult models.AllXappConfig
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	//Fake helm search success
+	helmExecRetOut = helmSearchOutput
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = strings.ReplaceAll(cfgData, "\\", "")
+
+	//Try to upload non-existing configuration element
+	result := NewCM().UploadConfigElement("some-not-existing-element")
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("UploadConfigElement failed: expected: %v, got: %v", expectedResult, result)
+	}
+}
+
+func TestGetRtmDataSuccess(t *testing.T) {
+	expectedKubeCmd := []string{
+		`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-dummy-xapp-appconfig`,
+	}
 	expectedMsgs := appmgr.RtmData{
 		TxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
 		RxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
 		Policies:   []int64{11, 22, 33},
 	}
 
-	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte(kubectlConfigmapOutput), nil
-	}
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = kubectlConfigmapOutput
 
 	result := NewCM().GetRtmData("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {
-		t.Errorf("TestGetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
+		t.Errorf("GetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
+	}
+	if !reflect.DeepEqual(caughtKubeExecArgs, expectedKubeCmd) {
+		t.Errorf("GetRtmData failed: expected: '%v', got: '%v'", expectedKubeCmd, caughtKubeExecArgs)
+	}
+}
+
+func TestGetRtmDataReturnsNoDataIfConfigmapGetFails(t *testing.T) {
+	var expectedMsgs appmgr.RtmData
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' failure
+	kubeExecRetErr = errors.New("some error")
+
+	result := NewCM().GetRtmData("dummy-xapp")
+	if !reflect.DeepEqual(result, expectedMsgs) {
+		t.Errorf("GetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
+	}
+}
+
+func TestGetRtmDataReturnsNoDataIfJsonParseFails(t *testing.T) {
+	var expectedMsgs appmgr.RtmData
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' to return nothing what will cause JSON parse failure
+
+	result := NewCM().GetRtmData("dummy-xapp")
+	if !reflect.DeepEqual(result, expectedMsgs) {
+		t.Errorf("GetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
 	}
 }
 
@@ -146,32 +337,50 @@ func TestFetchChartFails(t *testing.T) {
 }
 
 func TestFetchChartSuccess(t *testing.T) {
-	util.HelmExec = func(args string) (out []byte, err error) {
-		return
-	}
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
 
 	if NewCM().FetchChart("dummy-xapp") != nil {
 		t.Errorf("TestFetchChart failed!")
 	}
 }
 
+func TestGetNamespaceSuccess(t *testing.T) {
+	if ns := NewCM().GetNamespace("my-ns"); ns != "my-ns" {
+		t.Errorf("GetNamespace failed: expected: my-ns, got: %s", ns)
+	}
+}
+
+func TestGetNamespaceReturnsConfiguredNamespaceName(t *testing.T) {
+	if ns := NewCM().GetNamespace(""); ns != "ricxapp" {
+		t.Errorf("GetNamespace failed: expected: ricxapp, got: %s", ns)
+	}
+}
+
 func TestGetNamesFromHelmRepoSuccess(t *testing.T) {
 	expectedResult := []string{"anr", "appmgr", "dualco", "reporter", "uemgr"}
-	util.HelmExec = func(args string) (out []byte, err error) {
-		return []byte(helmSearchOutput), nil
-	}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	//Fake helm search success
+	helmExecRetOut = helmSearchOutput
 
 	names := NewCM().GetNamesFromHelmRepo()
 	if !reflect.DeepEqual(names, expectedResult) {
 		t.Errorf("GetNamesFromHelmRepo failed: expected %v, got %v", expectedResult, names)
 	}
+	if caughtHelmExecArgs != expectedHelmSearchCmd {
+		t.Errorf("GetNamesFromHelmRepo failed: expected: %v, got: %v", expectedHelmSearchCmd, caughtHelmExecArgs)
+	}
 }
 
 func TestGetNamesFromHelmRepoFailure(t *testing.T) {
 	expectedResult := []string{}
-	util.HelmExec = func(args string) (out []byte, err error) {
-		return []byte(helmSearchOutput), errors.New("Command failed!")
-	}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	helmExecRetOut = helmSearchOutput
+	helmExecRetErr = errors.New("Command failed!")
 
 	names := NewCM().GetNamesFromHelmRepo()
 	if names != nil {
@@ -180,25 +389,127 @@ func TestGetNamesFromHelmRepoFailure(t *testing.T) {
 }
 
 func TestBuildConfigMapSuccess(t *testing.T) {
+	expectedKubeCmd := []string{
+		`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-dummy-xapp-appconfig`,
+	}
 	name := "dummy-xapp"
 	namespace := "ricxapp"
 	m := models.ConfigMetadata{XappName: &name, Namespace: &namespace}
-	s := `{"Metadata": {"XappName": "ueec", "Namespace": "ricxapp"}, "Config": {"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}}`
+	s := `{"Metadata": {"XappName": "ueec", "Namespace": "ricxapp"}, ` +
+		`"Config": {"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}}`
 
-	util.KubectlExec = func(args string) (out []byte, err error) {
-		return []byte(`{"logger": {"level": 2}}`), nil
-	}
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = `{"logger": {"level": 2}}`
 
 	cmString, err := NewCM().BuildConfigMap(models.XAppConfig{Metadata: &m, Config: s})
 	if err != nil {
 		t.Errorf("BuildConfigMap failed: %v -> %v", err, cmString)
 	}
+	if !reflect.DeepEqual(caughtKubeExecArgs, expectedKubeCmd) {
+		t.Errorf("BuildConfigMap failed: expected: %v, got: %v", expectedKubeCmd, caughtKubeExecArgs)
+	}
 }
 
-func TestUpdateConfigMapFails(t *testing.T) {
+func TestBuildConfigMapReturnErrorIfJsonMarshalFails(t *testing.T) {
+	name := "dummy-xapp"
+	namespace := "ricxapp"
+	m := models.ConfigMetadata{XappName: &name, Namespace: &namespace}
+	//Give channel as a configuration input, this will fail JSON marshal
+	cmString, err := NewCM().BuildConfigMap(models.XAppConfig{Metadata: &m, Config: make(chan int)})
+	if err == nil {
+		t.Errorf("BuildConfigMap failed: %v -> %v", err, cmString)
+	}
+}
+
+func TestBuildConfigMapReturnErrorIfKubectlGetConfigmapFails(t *testing.T) {
+	name := "dummy-xapp"
+	namespace := "ricxapp"
+	m := models.ConfigMetadata{XappName: &name, Namespace: &namespace}
+	s := `{"Metadata": {"XappName": "ueec", "Namespace": "ricxapp"}, ` +
+		`"Config": {"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}}`
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' failure
+	kubeExecRetErr = errors.New("some error")
+
+	cmString, err := NewCM().BuildConfigMap(models.XAppConfig{Metadata: &m, Config: s})
+	if err == nil {
+		t.Errorf("BuildConfigMap failed: %v -> %v", err, cmString)
+	} else if err.Error() != "some error" {
+		t.Errorf("BuildConfigMap failed: expected: 'some error', got: '%s'", err.Error())
+	}
+}
+
+func TestBuildConfigMapReturnErrorIfJsonParserFails(t *testing.T) {
+	name := "dummy-xapp"
+	namespace := "ricxapp"
+	m := models.ConfigMetadata{XappName: &name, Namespace: &namespace}
+	s := `{"Metadata": {"XappName": "ueec", "Namespace": "ricxapp"}, ` +
+		`"Config": {"active": true, "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}}`
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Return empty json that causes JSON parser to fail
+	kubeExecRetOut = ``
+
+	cmString, err := NewCM().BuildConfigMap(models.XAppConfig{Metadata: &m, Config: s})
+	if err == nil {
+		t.Errorf("BuildConfigMap failed: %v -> %v", err, cmString)
+	}
+}
+
+func TestGenerateJSONFileSuccess(t *testing.T) {
+	err := NewCM().GenerateJSONFile("{}")
+	if err != nil {
+		t.Errorf("GenerateJSONFile failed: %v", err)
+	}
+}
+
+func TestReplaceConfigMapSuccess(t *testing.T) {
+	name := "dummy-xapp"
+	namespace := "ricxapp"
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl create configmap' success
+	kubeExecRetOut = ""
+
+	err := NewCM().ReplaceConfigMap(name, namespace)
+	if err != nil {
+		t.Errorf("ReplaceConfigMap failed: %v", err)
+	}
+}
+
+func TestUpdateConfigMapReturnsErrorIfSchemaFileIsMissing(t *testing.T) {
 	name := "dummy-xapp"
 	namespace := "ricxapp"
 	config := models.XAppConfig{Metadata: &models.ConfigMetadata{XappName: &name, Namespace: &namespace}}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	helmExecRetOut = `{}`
+
+	//Will fail at schema reading, because schema file is mission
+	validationErrors, err := NewCM().UpdateConfigMap(config)
+	if err == nil {
+		t.Errorf("UpdateConfigMap failed: %v -> %v", err, validationErrors)
+	}
+	if caughtHelmExecArgs != expectedHelmFetchCmd {
+		t.Errorf("UpdateConfigMap failed: expected: %v, got: %v", expectedHelmFetchCmd, caughtHelmExecArgs)
+	}
+}
+
+func TestUpdateConfigMapReturnsErrorIfHelmFetchChartFails(t *testing.T) {
+	name := "dummy-xapp"
+	namespace := "ricxapp"
+	config := models.XAppConfig{Metadata: &models.ConfigMetadata{XappName: &name, Namespace: &namespace}}
+
+	defer func() { resetHelmExecMock() }()
+	helmExec = mockedHelmExec
+	helmExecRetErr = errors.New("some error")
 
 	validationErrors, err := NewCM().UpdateConfigMap(config)
 	if err == nil {
@@ -225,6 +536,7 @@ func TestValidationSuccess(t *testing.T) {
 func TestValidationFails(t *testing.T) {
 	var d interface{}
 	var cfg map[string]interface{}
+
 	err := json.Unmarshal([]byte(`{"active": "INVALID", "interfaceId":{"globalENBId": {"eNBId": 77, "plmnId": "6666"}}}`), &cfg)
 
 	err = NewCM().ReadFile("../../test/schema.json", &d)
@@ -234,7 +546,47 @@ func TestValidationFails(t *testing.T) {
 
 	feedback, err := NewCM().doValidate(d, cfg)
 	if err == nil {
-		t.Errorf("doValidate should faile but didn't: %v -> %v", err, feedback)
+		t.Errorf("doValidate should fail but didn't: %v -> %v", err, feedback)
 	}
 	appmgr.Logger.Debug("Feedbacks: %v", feedback)
+}
+
+func TestReadFileReturnsErrorIfFileReadFails(t *testing.T) {
+	var d interface{}
+
+	if err := NewCM().ReadFile("not/existing/test/schema.json", &d); err == nil {
+		t.Errorf("ReadFile should fail but it didn't")
+	}
+}
+
+func TestReadFileReturnsErrorIfJsonUnmarshalFails(t *testing.T) {
+	var d interface{}
+
+	if err := NewCM().ReadFile("../../test/faulty_schema.json", &d); err == nil {
+		t.Errorf("ReadFile should fail but it didn't")
+	}
+}
+
+func mockedKubeExec(args string) (out []byte, err error) {
+	caughtKubeExecArgs = append(caughtKubeExecArgs, args)
+	return []byte(kubeExecRetOut), kubeExecRetErr
+}
+
+func resetKubeExecMock() {
+	kubeExec = util.KubectlExec
+	caughtKubeExecArgs = nil
+	kubeExecRetOut = ""
+	kubeExecRetErr = nil
+}
+
+func mockedHelmExec(args string) (out []byte, err error) {
+	caughtHelmExecArgs = args
+	return []byte(helmExecRetOut), helmExecRetErr
+}
+
+func resetHelmExecMock() {
+	helmExec = util.HelmExec
+	caughtHelmExecArgs = ""
+	helmExecRetOut = ""
+	helmExecRetErr = nil
 }

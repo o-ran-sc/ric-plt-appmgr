@@ -20,7 +20,6 @@
 package resthooks
 
 import (
-	sdl "gerrit.o-ran-sc.org/r/ric-plt/sdlgo"
 	cmap "github.com/orcaman/concurrent-map"
 	"net/http"
 
@@ -36,7 +35,7 @@ type SubscriptionInfo struct {
 type Resthook struct {
 	client        *http.Client
 	subscriptions cmap.ConcurrentMap
-	db            *sdl.SdlInstance
+	db            iSdl
 	Seq           int64
 }
 
@@ -46,4 +45,11 @@ type SubscriptionNotification struct {
 	ID      string `json:"id,omitempty"`
 	Version int64  `json:"version,omitempty"`
 	XApps   string `json:"xApps,omitempty"`
+}
+
+type iSdl interface {
+	Set(pairs ...interface{}) error
+	Get(keys []string) (map[string]interface{}, error)
+	GetAll() ([]string, error)
+	RemoveAll() error
 }
