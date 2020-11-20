@@ -83,6 +83,98 @@ var kubectlConfigmapOutput = `
     }
 }
 `
+var kubectlNewConfigmapOutput = `
+{
+    "name": "ueec",
+    "version": "0.7.0",
+    "vendor": "Nokia",
+    "moId": "SEP",
+    "containers": [
+        {
+            "name": "ueec",
+            "image": {
+                "registry": "ranco-dev-tools.eastus.cloudapp.azure.com:10001",
+                "name": "ueec-xapp",
+                "tag": "0.5.3"
+            },
+            "resources": {
+                "limits": {
+                    "cpu": "1",
+                    "memory": "50Mi"
+                },
+                "requests": {
+                    "cpu": "1",
+                    "memory": "100Mi"
+                }
+            }
+        }
+    ],
+    "livenessProbe": {
+        "httpGet": {
+            "path": "ric/v1/health/alive",
+            "port": 8080
+        },
+        "initialDelaySeconds": 5,
+        "periodSeconds": 15
+    },
+    "readinessProbe": {
+        "httpGet": {
+            "path": "ric/v1/health/ready",
+            "port": 8080
+        },
+        "initialDelaySeconds": 5,
+        "periodSeconds": 15
+    },
+    "messaging": {
+        "ports": [
+            {
+                "name": "http",
+                "container": "ueec",
+                "port": 8080,
+                "description": "http service"
+            },
+            {
+                "name": "rmr-route",
+                "container": "ueec",
+                "port": 4561,
+                "description": "rmr route port for ueec"
+            },
+            {
+                "name": "rmr-data",
+                "container": "ueec",
+                "port": 4560,
+                "maxSize": 2072,
+                "threadType": 0,
+                "lowLatency": false,
+                "txMessages": ["RIC_X2_LOAD_INFORMATION"],
+				"rxMessages": ["RIC_X2_LOAD_INFORMATION"],
+				"policies":   [11, 22, 33],
+                "description": "rmr data port for ueec"
+            }
+        ]
+    },
+    "controls": {
+        "logger": {
+            "level": 3
+        },
+        "subscription": {
+            "subscriptionActive": true,
+            "functionId": 1,
+            "plmnId": "310150",
+            "eNBId": "202251",
+            "timeout": 5,
+            "host": "service-ricplt-submgr-http.ricplt:8088",
+            "clientEndpoint": "service-ricxapp-ueec-http.ricxapp:8080"
+        }
+    },
+    "metrics": {
+        "url": "/ric/v1/metrics",
+        "namespace": "ricxapp"
+    },
+    "faults": { },
+    "measurements": []
+}
+`
 var cfgData = `{
 	"active":true,
 	"interfaceId": {
@@ -283,6 +375,30 @@ func TestGetRtmDataSuccess(t *testing.T) {
 	kubeExec = mockedKubeExec
 	//Fake 'kubectl get configmap' success
 	kubeExecRetOut = kubectlConfigmapOutput
+
+	result := NewCM().GetRtmData("dummy-xapp")
+	if !reflect.DeepEqual(result, expectedMsgs) {
+		t.Errorf("GetRtmData failed: expected: %v, got: %v", expectedMsgs, result)
+	}
+	if !reflect.DeepEqual(caughtKubeExecArgs, expectedKubeCmd) {
+		t.Errorf("GetRtmData failed: expected: '%v', got: '%v'", expectedKubeCmd, caughtKubeExecArgs)
+	}
+}
+
+func TestGetRtmDataNewSuccess(t *testing.T) {
+	expectedKubeCmd := []string{
+		`get configmap -o jsonpath='{.data.config-file\.json}' -n ricxapp  configmap-ricxapp-dummy-xapp-appconfig`,
+	}
+	expectedMsgs := appmgr.RtmData{
+		TxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
+		RxMessages: []string{"RIC_X2_LOAD_INFORMATION"},
+		Policies:   []int64{11, 22, 33},
+	}
+
+	defer func() { resetKubeExecMock() }()
+	kubeExec = mockedKubeExec
+	//Fake 'kubectl get configmap' success
+	kubeExecRetOut = kubectlNewConfigmapOutput
 
 	result := NewCM().GetRtmData("dummy-xapp")
 	if !reflect.DeepEqual(result, expectedMsgs) {

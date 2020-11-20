@@ -227,20 +227,38 @@ func (cm *CM) GetRtmData(name string) (msgs appmgr.RtmData) {
 		return
 	}
 
-	for _, m := range v.GetArray("rmr", "txMessages") {
-		msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
-	}
+	if v.Exists("rmr") {
+		for _, m := range v.GetArray("rmr", "txMessages") {
+			msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
+		}
 
-	for _, m := range v.GetArray("rmr", "rxMessages") {
-		msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
-	}
+		for _, m := range v.GetArray("rmr", "rxMessages") {
+			msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+		}
 
-	for _, m := range v.GetArray("rmr", "policies") {
-		if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
-			msgs.Policies = append(msgs.Policies, int64(val))
+		for _, m := range v.GetArray("rmr", "policies") {
+			if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
+				msgs.Policies = append(msgs.Policies, int64(val))
+			}
+		}
+	} else {
+		for _, p := range v.GetArray("messaging", "ports") {
+			appmgr.Logger.Info("txMessages=%v, rxMessages=%v", p.GetArray("txMessages"), p.GetArray("rxMessages"))
+			for _, m := range p.GetArray("txMessages") {
+				msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
+			}
+
+			for _, m := range p.GetArray("rxMessages") {
+				msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+			}
+
+			for _, m := range p.GetArray("policies") {
+				if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
+					msgs.Policies = append(msgs.Policies, int64(val))
+				}
+			}
 		}
 	}
-
 	return
 }
 
