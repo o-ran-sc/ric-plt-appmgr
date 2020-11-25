@@ -47,6 +47,9 @@ type Helm struct {
 func GetHelmVersion() {
         var temp string
         temp = os.Getenv("HELMVERSION")
+        if temp == "" {
+                temp = "HELMVERSION=v2.12.3"
+        }
         appmgr.Logger.Info("Inside new Helm")
         temp = strings.TrimLeft(temp,"v")
         cm.EnvHelmVersion = string(temp[0:1]) //s.TrimRight(temp, ".")
