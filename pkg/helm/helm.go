@@ -48,7 +48,7 @@ func GetHelmVersion() {
         var temp string
         temp = os.Getenv("HELMVERSION")
         if temp == "" {
-                temp = "HELMVERSION=v2.12.3"
+                temp = "v2.12.3"
         }
         appmgr.Logger.Info("Inside new Helm")
         temp = strings.TrimLeft(temp,"v")
@@ -385,7 +385,6 @@ func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args st
                 args = fmt.Sprintf("%s --version=%s", args, x.HelmVersion)
         }
 
-
         if cm.EnvHelmVersion == cm.HELM_VERSION_2 {
                 if x.ReleaseName != "" {
                         args = fmt.Sprintf("%s --name=%s", args, x.ReleaseName)
@@ -417,7 +416,6 @@ func (h *Helm) GetInstallArgs(x models.XappDescriptor, cmOverride bool) (args st
         if repoName == "" {
                 repoName = "helm-repo"
         }
-
 
         if cm.EnvHelmVersion == cm.HELM_VERSION_3 {
                 appmgr.Logger.Info ("GetInstallArgs last: Version 3")
