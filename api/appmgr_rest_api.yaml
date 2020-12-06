@@ -329,6 +329,49 @@ paths:
           description: Successful deletion of subscription
         '400':
           description: Invalid subscription supplied
+  /register:
+    post:
+      summary: Register a new xApp
+      tags:
+        - xapp
+        - registration
+      operationId: registerXapp
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: registerRequest
+          in: body
+          description: New xApp registration
+          required: true
+          schema:
+            $ref: '#/definitions/registerRequest'
+      responses:
+        '201':
+          description: Registration successful
+        '400':
+          description: Invalid input
+  /register/{xAppName}:
+    delete:
+      summary: Deregister an existing xApp
+      tags:
+        - xapp
+        - registration
+      operationId: deregisterXapp
+      parameters:
+        - name: xAppName
+          in: path
+          description: Xapp to be unregistered
+          required: true
+          type: string
+      responses:
+        '204':
+          description: Successful deregistration of xApp
+        '400':
+          description: Invalid xApp name supplied
+        '500':
+          description: Internal error
 definitions:
   AllDeployableXapps:
     type: array
@@ -530,3 +573,21 @@ definitions:
         $ref: '#/definitions/EventType'
       xApps:
         $ref: '#/definitions/AllDeployedXapps'
+  registerRequest:
+    type: object
+    required:
+      - appName
+      - appInstanceName
+      - httpEndpoint
+      - rmrEndpoint
+    properties:
+      appName:
+        type: string
+      appVersion:
+        type: string
+      appInstanceName:
+        type: string
+      httpEndpoint:
+        type: string
+      rmrEndpoint:
+        type: string
