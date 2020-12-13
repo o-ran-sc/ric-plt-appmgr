@@ -41,6 +41,7 @@ import (
 var rh *Resthook
 var resp models.SubscriptionResponse
 var mockedSdl *SdlMock
+var mockedSdl2 *SdlMock
 
 // Test cases
 func TestMain(m *testing.M) {
@@ -48,7 +49,8 @@ func TestMain(m *testing.M) {
 	appmgr.Logger.SetLevel(0)
 
 	mockedSdl = new(SdlMock)
-	rh = createResthook(false, mockedSdl)
+	mockedSdl2 = new(SdlMock)
+	rh = createResthook(false, mockedSdl,mockedSdl2)
 	code := m.Run()
 	os.Exit(code)
 }
@@ -203,6 +205,7 @@ func TestNotifyReturnsErrorAfterRetriesIfNoHttpServer(t *testing.T) {
 func TestRestoreSubscriptionsSuccess(t *testing.T) {
 	var mockSdlRetOk error
 	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
 	key := "key-1"
 
 	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
@@ -214,7 +217,7 @@ func TestRestoreSubscriptionsSuccess(t *testing.T) {
 	mockSdlGetRetVal[key] = string(serializedSubsReq)
 	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
 	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetOk).Once()
-	restHook := createResthook(true, mSdl)
+	restHook := createResthook(true, mSdl,mSdl2)
 
 	val, found := restHook.subscriptions.Get(key)
 	assert.True(t, found)
@@ -224,6 +227,7 @@ func TestRestoreSubscriptionsSuccess(t *testing.T) {
 func TestRestoreSubscriptionsFailsIfSdlGetAllFails(t *testing.T) {
 	var mockSdlRetStatus error
 	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
 	getCalled := 0
 	mGetAllCall := mSdl.On("GetAll")
 	mGetAllCall.RunFn = func(args mock.Arguments) {
@@ -234,13 +238,14 @@ func TestRestoreSubscriptionsFailsIfSdlGetAllFails(t *testing.T) {
 		mGetAllCall.ReturnArguments = mock.Arguments{[]string{}, mockSdlRetStatus}
 	}
 
-	restHook := createResthook(true, mSdl)
+	restHook := createResthook(true, mSdl,mSdl2)
 	assert.Equal(t, 0, len(restHook.subscriptions.Items()))
 }
 
 func TestRestoreSubscriptionsFailsIfSdlGetFails(t *testing.T) {
 	var mockSdlRetOk error
 	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
 	mockSdlRetNok := errors.New("some SDL error")
 	key := "key-1"
 	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
@@ -253,7 +258,7 @@ func TestRestoreSubscriptionsFailsIfSdlGetFails(t *testing.T) {
 	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
 	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
 
-	restHook := createResthook(true, mSdl)
+	restHook := createResthook(true, mSdl,mSdl2)
 	assert.Equal(t, 0, len(restHook.subscriptions.Items()))
 }
 
@@ -349,6 +354,11 @@ func (m *SdlMock) GetAll() ([]string, error) {
 }
 
 func (m *SdlMock) RemoveAll() error {
+	a := m.Called()
+	return a.Error(0)
+}
+
+func (m *SdlMock) Remove(keys []string) error {
 	a := m.Called()
 	return a.Error(0)
 }

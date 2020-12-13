@@ -352,19 +352,22 @@ paths:
           description: Registration successful
         '400':
           description: Invalid input
-  /register/{xAppName}:
-    delete:
+  /deregister:		  
+    post:
       summary: Deregister an existing xApp
       tags:
         - xapp
         - registration
       operationId: deregisterXapp
+      consumes:
+        - application/json
       parameters:
-        - name: xAppName
-          in: path
+        - name: deregisterRequest
+          in: body
           description: Xapp to be unregistered
           required: true
-          type: string
+          schema:
+            $ref: '#/definitions/deregisterRequest'
       responses:
         '204':
           description: Successful deregistration of xApp
@@ -585,9 +588,21 @@ definitions:
         type: string
       appVersion:
         type: string
+      configPath:
+        type: string
       appInstanceName:
         type: string
       httpEndpoint:
         type: string
       rmrEndpoint:
+        type: string
+  deregisterRequest:
+    type: object
+    required:
+      - appName
+      - appInstanceName
+    properties:
+      appName:
+        type: string
+      appInstanceName:
         type: string
