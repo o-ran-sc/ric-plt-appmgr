@@ -47,3 +47,29 @@ type Restful struct {
 	rh    *resthook.Resthook
 	ready bool
 }
+
+//Taken from xapp-frame models
+type ConfigMetadata struct {
+
+	// The type of the content
+	// Required: true
+	// Enum: [json xml other]
+	ConfigType *string `json:"configType"`
+
+	// Name of the xApp
+	// Required: true
+	XappName *string `json:"xappName"`
+}
+
+type XAppConfig struct {
+
+	// Configuration in JSON format
+	// Required: true
+	Config interface{} `json:"config"`
+
+	// metadata
+	// Required: true
+	Metadata *ConfigMetadata `json:"metadata"`
+}
+
+type XappConfigList []*XAppConfig

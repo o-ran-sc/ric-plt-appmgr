@@ -15,23 +15,21 @@
 
 #-----------------------------------------------------------
 
-ARG HELMVERSION=v2.12.3
 FROM nexus3.o-ran-sc.org:10004/o-ran-sc/bldr-ubuntu18-c-go:9-u18.04 AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-ARG HELMVERSION
 # Install helm
-RUN wget -nv https://get.helm.sh/helm-${HELMVERSION}-linux-amd64.tar.gz \
-    && tar -zxvf helm-${HELMVERSION}-linux-amd64.tar.gz \
-    && cp linux-amd64/helm /usr/local/bin/helm \
-    && rm -rf helm-${HELMVERSION}-linux-amd64.tar.gz \
-    && rm -rf linux-amd64
+#RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linux-amd64.tar.gz \
+#    && tar -zxvf helm-${HELMVERSION}-linux-amd64.tar.gz \
+#    && cp linux-amd64/helm /usr/local/bin/helm \
+#    && rm -rf helm-${HELMVERSION}-linux-amd64.tar.gz \
+#    && rm -rf linux-amd64
 
 # Install kubectl from Docker Hub
-COPY --from=lachlanevenson/k8s-kubectl:v1.16.0 /usr/local/bin/kubectl /usr/local/bin/kubectl
+#COPY --from=lachlanevenson/k8s-kubectl:v1.16.0 /usr/local/bin/kubectl /usr/local/bin/kubectl
 
 ENV GOPATH="/go"
 
@@ -62,7 +60,7 @@ COPY . /go/src/ws
 RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/src/ws/cache/go/cmd/appmgr cmd/appmgr.go
 
 # Run unit tests
-RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go test -p 1 -cover ./pkg/cm/ ./pkg/helm/ ./pkg/resthooks/
+RUN GO111MODULE=on GO_ENABLED=0 GOOS=linux go test -p 1 -cover ./pkg/resthooks/
 
 RUN gofmt -l $(find cmd/ pkg/  -name '*.go' -not -name '*_test.go')
 
@@ -80,13 +78,11 @@ RUN apt-get update -y \
 #
 COPY --from=appmgr-build /usr/local/include/ /usr/local/include/
 COPY --from=appmgr-build /usr/local/lib/ /usr/local/lib/
-COPY --from=appmgr-build /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
+#COPY --from=appmgr-build /usr/local/bin/helm /usr/local/bin/helm
+#COPY --from=appmgr-build /usr/local/bin/kubectl /usr/local/bin/kubectl
 
 RUN ldconfig
 
-ARG HELMVERSION
-ENV HELMVERSION=$HELMVERSION
 #
 # xApp Manager
 #

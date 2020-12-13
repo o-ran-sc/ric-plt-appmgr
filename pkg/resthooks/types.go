@@ -36,6 +36,7 @@ type Resthook struct {
 	client        *http.Client
 	subscriptions cmap.ConcurrentMap
 	db            iSdl
+        db2           iSdl
 	Seq           int64
 }
 
@@ -52,4 +53,5 @@ type iSdl interface {
 	Get(keys []string) (map[string]interface{}, error)
 	GetAll() ([]string, error)
 	RemoveAll() error
+	Remove([]string) error
 }

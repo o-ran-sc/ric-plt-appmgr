@@ -22,10 +22,12 @@ package resthooks
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	sdl "gerrit.o-ran-sc.org/r/ric-plt/sdlgo"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/segmentio/ksuid"
 	"net/http"
+	"strings"
 	"time"
 
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
@@ -33,13 +35,14 @@ import (
 )
 
 func NewResthook(restoreData bool) *Resthook {
-	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()))
+	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()),sdl.NewSdlInstance("appdb", sdl.NewDatabase()))
 }
 
-func createResthook(restoreData bool, sdlInst iSdl) *Resthook {
+func createResthook(restoreData bool, sdlInst iSdl, sdlInst2 iSdl) *Resthook {
 	rh := &Resthook{
 		client: &http.Client{},
 		db:     sdlInst,
+		db2:	sdlInst2,
 	}
 
 	if restoreData {
@@ -236,4 +239,69 @@ func (rh *Resthook) VerifyDBConnection() {
 func (rh *Resthook) FlushSubscriptions() {
 	rh.db.RemoveAll()
 	rh.subscriptions = cmap.New()
+}
+
+func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool) {
+	appmgr.Logger.Info("Endpoint to be added in SDL: %s", *params.HTTPEndpoint)
+	if updateflag == false {
+		return
+	}
+
+	value, err := rh.db2.Get([]string{"endpoints"})
+	if err != nil {
+		appmgr.Logger.Error("DB.session.Get failed: %v ", err.Error())
+		return
+	}
+
+	appmgr.Logger.Info("List of Apps in SDL: %v", value["endpoints"])
+	var appsindb []string
+	var data string
+	dbflag := false
+
+	if value["endpoints"] != nil {
+		formstring := fmt.Sprintf("%s", value["endpoints"])
+		newstring := strings.Split(formstring, " ")
+		for i, _ := range newstring {
+			if len(newstring) == 1 && strings.Contains(newstring[i], *params.HTTPEndpoint) {
+				appmgr.Logger.Info("Removing Key %s", *params.HTTPEndpoint)
+				rh.db2.Remove([]string{"endpoints"})
+				dbflag = true
+				break
+			}
+			if strings.Contains(newstring[i], *params.HTTPEndpoint) {
+				appmgr.Logger.Info("Removing entry %s", *params.HTTPEndpoint)
+				dbflag = true
+				continue
+			}
+			appsindb = append(appsindb, newstring[i])
+			data = strings.Join(appsindb, " ")
+		}
+		rh.db2.Set("endpoints", strings.TrimSpace(data))
+	}
+
+	if dbflag == false {
+		xappData, err := json.Marshal(params)
+		if err != nil {
+			appmgr.Logger.Info("json.Marshal failed: %v", err)
+			return
+		}
+		appsindb = append(appsindb, string(xappData))
+		data = strings.Join(appsindb, " ")
+		rh.db2.Set("endpoints", strings.TrimSpace(data))
+	}
+}
+
+func (rh *Resthook) GetAppsInSDL() *string {
+	value, err := rh.db2.Get([]string{"endpoints"})
+	if err != nil {
+		appmgr.Logger.Error("DB.session.Get failed: %v ", err.Error())
+		return nil
+	}
+	appmgr.Logger.Info("List of Apps in SDL: %v", value["endpoints"])
+	if value["endpoints"] == nil || value["endpoints"] == "" {
+		return nil
+	} else {
+		apps := fmt.Sprintf("%s", value["endpoints"])
+		return &apps
+	}
 }
