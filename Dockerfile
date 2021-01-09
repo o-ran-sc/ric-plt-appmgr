@@ -15,7 +15,7 @@
 
 #-----------------------------------------------------------
 
-FROM nexus3.o-ran-sc.org:10004/o-ran-sc/bldr-ubuntu18-c-go:9-u18.04 AS appmgr-build
+FROM nexus3.o-ran-sc.org:10004/o-ran-sc/bldr-ubuntu18-c-go:1.9.0 AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
