@@ -173,6 +173,12 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 			return xapp.NewGetAllXappsInternalServerError()
 		})
 
+	// URL: /ric/v1/config
+	api.XappGetAllXappConfigHandler = xapp.GetAllXappConfigHandlerFunc(
+		func(params xapp.GetAllXappConfigParams) middleware.Responder {
+			return xapp.NewGetAllXappConfigOK().WithPayload(r.getAppConfig())
+		})
+
 	api.RegisterXappHandler = operations.RegisterXappHandlerFunc(
 		func(params operations.RegisterXappParams) middleware.Responder {
 			appmgr.Logger.Info("appname is %s", (*params.RegisterRequest.AppName))
@@ -198,11 +204,11 @@ func (r *Restful) SetupHandler() *operations.AppManagerAPI {
 	return api
 }
 
-func httpGetXAppsconfig(url string) (*appmgr.RtmData, error) {
+func httpGetXAppsconfig(url string) *string {
 	appmgr.Logger.Info("Invoked httprestful.httpGetXApps: " + url)
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	defer resp.Body.Close()
 
@@ -211,59 +217,63 @@ func httpGetXAppsconfig(url string) (*appmgr.RtmData, error) {
 		appmgr.Logger.Info("http client raw response: %v", resp)
 		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 			appmgr.Logger.Error("Json decode failed: " + err.Error())
-			return nil, err
+			return nil
 		}
 		//data[0] assuming only for one app
 		str := fmt.Sprintf("%v", data[0].Config)
 		appmgr.Logger.Info("HTTP BODY: %v", str)
 
 		resp.Body.Close()
+		return &str
+	} else {
+		appmgr.Logger.Info("httprestful got an unexpected http status code: %v", resp.StatusCode)
+		return nil
+	}
+}
 
-		var p fastjson.Parser
-		var msgs appmgr.RtmData
+func parseConfig(config *string) *appmgr.RtmData {
+	var p fastjson.Parser
+	var msgs appmgr.RtmData
 
-		v, err := p.Parse(str)
-		if err != nil {
-			appmgr.Logger.Info("fastjson.Parser for failed: %v", err)
-			return nil, err
+	v, err := p.Parse(*config)
+	if err != nil {
+		appmgr.Logger.Info("fastjson.Parser for failed: %v", err)
+		return nil
+	}
+
+	if v.Exists("rmr") {
+		for _, m := range v.GetArray("rmr", "txMessages") {
+			msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
 		}
 
-		if v.Exists("rmr") {
-			for _, m := range v.GetArray("rmr", "txMessages") {
+		for _, m := range v.GetArray("rmr", "rxMessages") {
+			msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+		}
+
+		for _, m := range v.GetArray("rmr", "policies") {
+			if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
+				msgs.Policies = append(msgs.Policies, int64(val))
+			}
+		}
+	} else {
+		for _, p := range v.GetArray("messaging", "ports") {
+			appmgr.Logger.Info("txMessages=%v, rxMessages=%v", p.GetArray("txMessages"), p.GetArray("rxMessages"))
+			for _, m := range p.GetArray("txMessages") {
 				msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
 			}
 
-			for _, m := range v.GetArray("rmr", "rxMessages") {
+			for _, m := range p.GetArray("rxMessages") {
 				msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
 			}
 
-			for _, m := range v.GetArray("rmr", "policies") {
+			for _, m := range p.GetArray("policies") {
 				if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
 					msgs.Policies = append(msgs.Policies, int64(val))
 				}
 			}
-		} else {
-			for _, p := range v.GetArray("messaging", "ports") {
-				appmgr.Logger.Info("txMessages=%v, rxMessages=%v", p.GetArray("txMessages"), p.GetArray("rxMessages"))
-				for _, m := range p.GetArray("txMessages") {
-					msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
-				}
-
-				for _, m := range p.GetArray("rxMessages") {
-					msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
-				}
-
-				for _, m := range p.GetArray("policies") {
-					if val, err := strconv.Atoi(strings.Trim(m.String(), `"`)); err == nil {
-						msgs.Policies = append(msgs.Policies, int64(val))
-					}
-				}
-			}
 		}
-		return &msgs, nil
 	}
-	appmgr.Logger.Info("httprestful got an unexpected http status code: %v", resp.StatusCode)
-	return nil, nil
+	return &msgs
 }
 
 func (r *Restful) RegisterXapp(params models.RegisterRequest) (xapp *models.Xapp, err error) {
@@ -295,27 +305,27 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 	//tmpString := strings.Split(*params.HTTPEndpoint, "//")
 	appmgr.Logger.Info("http endpoint is %s", *params.HTTPEndpoint)
 	for i := 1; i <= maxRetries; i++ {
-		data, err := httpGetXAppsconfig(fmt.Sprintf("http://%s%s", *params.HTTPEndpoint, params.ConfigPath))
+		xappconfig := httpGetXAppsconfig(fmt.Sprintf("http://%s%s", *params.HTTPEndpoint, params.ConfigPath))
 
-		if data != nil && err == nil {
-			appmgr.Logger.Info("iRetry Count = %v", i)
-			var xapp models.Xapp
+		if xappconfig != nil {
+			data := parseConfig(xappconfig)
+			if data != nil {
+				appmgr.Logger.Info("iRetry Count = %v", i)
+				var xapp models.Xapp
 
-			xapp.Name = params.AppName
-			xapp.Version = params.AppVersion
-			//xapp.Status = params.Status
+				xapp.Name = params.AppName
+				xapp.Version = params.AppVersion
+				//xapp.Status = params.Status
 
-			r.rh.UpdateAppData(params, updateflag)
-			return r.FillInstanceData(params, &xapp, *data)
-			break
-		} else if err == nil {
-			appmgr.Logger.Error("Unexpected HTTP status code/JSON Parsing error")
-		} else {
-			appmgr.Logger.Error("Couldn't get data due to" + err.Error())
+				r.rh.UpdateAppData(params, updateflag)
+				return r.FillInstanceData(params, &xapp, *data)
+				break
+			} else {
+				appmgr.Logger.Error("Couldn't get data due to" + err.Error())
+			}
+			time.Sleep(2 * time.Second)
 		}
-		time.Sleep(2 * time.Second)
 	}
-
 	return nil, errors.New("Unable to get configmap after 5 retries")
 }
 
@@ -365,4 +375,29 @@ func (r *Restful) GetApps() (xapps models.AllDeployedXapps, err error) {
 
 	return xapps, nil
 
+}
+
+func (r *Restful) getAppConfig() (configList models.AllXappConfig) {
+	for _, v := range xappmap {
+		namespace := "ricxapp" //Namespace hardcode, to be removed later
+		for _, j := range v {
+			var activeConfig interface{}
+			xappconfig := httpGetXAppsconfig(fmt.Sprintf("http://%s%s", j.httpendpoint, j.xappconfigpath))
+
+			if xappconfig == nil {
+				appmgr.Logger.Info("config not found for %s", &j.xappname)
+				continue
+			}
+			json.Unmarshal([]byte(*xappconfig), &activeConfig)
+
+			c := models.XAppConfig{
+				Metadata: &models.ConfigMetadata{XappName: &j.xappname, Namespace: &namespace},
+				Config:   activeConfig,
+			}
+			configList = append(configList, &c)
+
+		}
+
+	}
+	return
 }
