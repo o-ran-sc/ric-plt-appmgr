@@ -45,15 +45,16 @@ import (
 )
 
 type XappData struct {
-	httpendpoint   string
-	rmrendpoint    string
-	rmrserviceep   string
-	status         string
-	xappname       string
-	xappinstname   string
-	xappversion    string
-	xappconfigpath string
-	xappInstance   *models.XappInstance
+	httpendpoint     string
+	rmrendpoint      string
+	rmrserviceep     string
+	status           string
+	xappname         string
+	xappinstname     string
+	xappversion      string
+	xappconfigpath   string
+	xappdynamiconfig bool
+	xappInstance     *models.XappInstance
 }
 
 var xappmap = map[string]map[string]*XappData{}
@@ -303,10 +304,18 @@ func (r *Restful) DeregisterXapp(params models.DeregisterRequest) (xapp *models.
 
 func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) (xapp *models.Xapp, err error) {
 	maxRetries := 5
-	//tmpString := strings.Split(*params.HTTPEndpoint, "//")
+	configPresent := false
+	var xappconfig *string
 	appmgr.Logger.Info("http endpoint is %s", *params.HTTPEndpoint)
 	for i := 1; i <= maxRetries; i++ {
-		xappconfig := httpGetXAppsconfig(fmt.Sprintf("http://%s%s", *params.HTTPEndpoint, params.ConfigPath))
+		if params.Config != "" {
+			appmgr.Logger.Info("Getting config during xapp register: %v", params.Config)
+			xappconfig = &params.Config
+			configPresent = true
+		} else {
+			appmgr.Logger.Info("Getting config from xapp:")
+			xappconfig = httpGetXAppsconfig(fmt.Sprintf("http://%s%s", *params.HTTPEndpoint, params.ConfigPath))
+		}
 
 		if xappconfig != nil {
 			data := parseConfig(xappconfig)
@@ -319,10 +328,13 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 				//xapp.Status = params.Status
 
 				r.rh.UpdateAppData(params, updateflag)
-				return r.FillInstanceData(params, &xapp, *data)
+				return r.FillInstanceData(params, &xapp, *data, configPresent)
 				break
 			} else {
-				appmgr.Logger.Error("Couldn't get data due to" + err.Error())
+				appmgr.Logger.Error("No Data from xapp")
+			}
+			if configPresent == true {
+				break
 			}
 			time.Sleep(2 * time.Second)
 		}
@@ -330,9 +342,8 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 	return nil, errors.New("Unable to get configmap after 5 retries")
 }
 
-func (r *Restful) FillInstanceData(params models.RegisterRequest, xapp *models.Xapp, rtData appmgr.RtmData) (xapps *models.Xapp, err error) {
+func (r *Restful) FillInstanceData(params models.RegisterRequest, xapp *models.Xapp, rtData appmgr.RtmData, configFlag bool) (xapps *models.Xapp, err error) {
 
-	//tmpString := strings.Split(*params.RmrEndpoint, "//")
 	endPointStr := strings.Split(*params.RmrEndpoint, ":")
 	var x models.XappInstance
 	x.Name = params.AppInstanceName
@@ -348,14 +359,15 @@ func (r *Restful) FillInstanceData(params models.RegisterRequest, xapp *models.X
 	rmrsrvname := fmt.Sprintf("service-ricxapp-%s-rmr.ricxapp:%s", *params.AppInstanceName, x.Port)
 
 	a := &XappData{httpendpoint: *params.HTTPEndpoint,
-		rmrendpoint:    *params.RmrEndpoint,
-		rmrserviceep:   rmrsrvname,
-		status:         "deployed",
-		xappname:       *params.AppName,
-		xappversion:    params.AppVersion,
-		xappinstname:   *params.AppInstanceName,
-		xappconfigpath: params.ConfigPath,
-		xappInstance:   &x}
+		rmrendpoint:      *params.RmrEndpoint,
+		rmrserviceep:     rmrsrvname,
+		status:           "deployed",
+		xappname:         *params.AppName,
+		xappversion:      params.AppVersion,
+		xappinstname:     *params.AppInstanceName,
+		xappconfigpath:   params.ConfigPath,
+		xappdynamiconfig: configFlag,
+		xappInstance:     &x}
 
 	if _, ok := xappmap[*params.AppName]; ok {
 		xappmap[*params.AppName][*params.AppInstanceName] = a
@@ -390,9 +402,12 @@ func (r *Restful) GetApps() (xapps models.AllDeployedXapps, err error) {
 
 func (r *Restful) getAppConfig() (configList models.AllXappConfig) {
 	for _, v := range xappmap {
-		namespace := "ricxapp" //Namespace hardcode, to be removed later
+		namespace := "ricxapp" //Namespace hardcoded, to be removed later
 		for _, j := range v {
 			var activeConfig interface{}
+			if j.xappdynamiconfig {
+				continue
+			}
 			xappconfig := httpGetXAppsconfig(fmt.Sprintf("http://%s%s", j.httpendpoint, j.xappconfigpath))
 
 			if xappconfig == nil {

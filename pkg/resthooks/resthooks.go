@@ -35,14 +35,14 @@ import (
 )
 
 func NewResthook(restoreData bool) *Resthook {
-	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()),sdl.NewSdlInstance("appdb", sdl.NewDatabase()))
+	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()), sdl.NewSdlInstance("appdb", sdl.NewDatabase()))
 }
 
 func createResthook(restoreData bool, sdlInst iSdl, sdlInst2 iSdl) *Resthook {
 	rh := &Resthook{
 		client: &http.Client{},
 		db:     sdlInst,
-		db2:	sdlInst2,
+		db2:    sdlInst2,
 	}
 
 	if restoreData {
@@ -245,6 +245,11 @@ func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool
 	appmgr.Logger.Info("Endpoint to be added in SDL: %s", *params.HTTPEndpoint)
 	if updateflag == false {
 		return
+	}
+
+	//Ensure config is empty string, as we dont want to store config in DB
+	if params.Config != "" {
+		params.Config = ""
 	}
 
 	value, err := rh.db2.Get([]string{"endpoints"})
