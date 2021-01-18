@@ -322,7 +322,7 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 				return r.FillInstanceData(params, &xapp, *data)
 				break
 			} else {
-				appmgr.Logger.Error("Couldn't get data due to" + err.Error())
+				appmgr.Logger.Error("No Data from xapp")
 			}
 			time.Sleep(2 * time.Second)
 		}
