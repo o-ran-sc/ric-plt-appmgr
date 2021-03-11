@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	//"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -76,6 +75,7 @@ func (r *Restful) Run() {
 
 	appmgr.Logger.Info("Xapp manager started ... serving on %s:%d\n", server.Host, server.Port)
 
+	go r.symptomdataServer()
 	go r.RetrieveApps()
 	if err := server.Serve(); err != nil {
 		log.Fatal(err.Error())
@@ -426,4 +426,27 @@ func (r *Restful) getAppConfig() (configList models.AllXappConfig) {
 
 	}
 	return
+}
+
+func (r *Restful) symptomdataServer() {
+	http.HandleFunc("/ric/v1/symptomdata", func(w http.ResponseWriter, req *http.Request) {
+		d, _ := r.GetApps()
+		xappData := struct {
+			XappList		models.AllDeployedXapps `json:"xappList"`
+			ConfigList		models.AllXappConfig	`json:"configList"`
+			SubscriptionList	models.AllSubscriptions	`json:"subscriptionList"`
+		}{
+			d,
+			r.getAppConfig(),
+			r.rh.GetAllSubscriptions(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=platform/apps_info.json")
+		w.WriteHeader(http.StatusOK)
+		resp, _ := json.MarshalIndent(xappData, "", "    ")
+		w.Write(resp)
+	})
+
+	http.ListenAndServe(":8081", nil)
 }
