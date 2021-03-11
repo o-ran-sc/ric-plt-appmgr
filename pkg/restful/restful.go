@@ -427,3 +427,25 @@ func (r *Restful) getAppConfig() (configList models.AllXappConfig) {
 	}
 	return
 }
+
+func (r *Restful) symptomdataServer() {
+	http.HandleFunc("/ric/v1/symptomdata", func(w http.ResponseWriter, req *http.Request) {
+		xappData := struct {
+			XappList 			models.AllDeployedXapps `json:"xappList"`
+			ConfigList 			models.AllXappConfig	`json:"configList"`
+			SubscriptionList	models.AllSubscriptions	`json:"subscriptionList"`
+		}{
+			GetApps(),
+			getAppConfig(),
+			r.rh.GetAllSubscriptions(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=platform/apps_info.json")
+		w.WriteHeader(http.StatusOK)
+		resp, _ := json.MarshalIndent(xappData, "", "    ")
+		w.Write(string(resp))
+	})
+	
+	http.ListenAndServe(":8081", nil)
+}
