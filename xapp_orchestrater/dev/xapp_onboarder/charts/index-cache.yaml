@@ -1,0 +1,23 @@
+apiVersion: v1
+entries:
+  ueec:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2020-11-18T05:42:18.708541492Z"
+    description: Standard xApp Helm Chart
+    digest: cea7ed0a26dea4e24f44e8f281c5e4ad22029ba6ff891eededc8bba1d4cd2ee6
+    name: ueec
+    urls:
+    - charts/ueec-2.0.0.tgz
+    version: 2.0.0
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2020-11-18T05:31:16.586130707Z"
+    description: Standard xApp Helm Chart
+    digest: f7be73dfcd8962eaeda5a042f484fae7d9ddf164d6fa129679c18006105888df
+    name: ueec
+    urls:
+    - charts/ueec-1.0.0.tgz
+    version: 1.0.0
+generated: "2020-11-18T05:42:19Z"
+serverInfo: {}

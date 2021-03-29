@@ -1,0 +1,10 @@
+---
+distribution_type: container
+container_release_tag: 1.0.7
+container_pull_registry: nexus3.o-ran-sc.org:10004
+container_push_registry: nexus3.o-ran-sc.org:10002
+project: it/dev
+ref: a77ec6df0a387fd5a5fc9f219a60604f9147b7cd
+containers:
+    - name: xapp-onboarder
+      version: 1.0.7

@@ -1,0 +1,329 @@
+# ==================================================================================
+#       Copyright (c) 2020 AT&T Intellectual Property.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#          http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+# ==================================================================================
+openapi: 3.0.1
+info:
+  title: RIC xApp onboarder API
+  description: APIs to manage the xApp helm charts
+  version: "1.0"
+servers:
+- url: /api/v1
+tags:
+- name: onboard
+  description: onboard xApps
+- name: health
+  description: health check
+- name: charts
+  description: Managing helm charts
+paths:
+  /charts:
+    get:
+      tags:
+      - charts
+      summary: Returns the list of xApp helm charts that have been onboarded
+      operationId: get_charts_list
+      responses:
+        200:
+          description: Get helm chart list OK
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Get helm chart list failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+
+  /charts/xapp/{xapp_chart_name}:
+    get:
+      tags:
+      - charts
+      summary: Returns the helm chart for the specified xApp
+      operationId: get_version_list
+      parameters:
+      - name: xapp_chart_name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Get helm chart OK
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Get helm chart failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+
+  /charts/xapp/{xapp_chart_name}/ver/{version}:
+    get:
+      tags:
+      - charts
+      summary: Returns the helm chart for the specified xApp and version
+      operationId: get_charts_fetcher
+      parameters:
+      - name: xapp_chart_name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Get helm chart package OK
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Get helm chart package failed
+          content:
+            application/gzip:
+              schema:
+                $ref: '#/components/schemas/error_message'
+
+  /charts/xapp/{xapp_chart_name}/ver/{version}/values.yaml:
+    get:
+      tags:
+      - charts
+      summary: Returns the helm values
+      description: yaml file of the specified xApp and version.
+      operationId: get_values_yaml_fetcher
+      parameters:
+      - name: xapp_chart_name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Get helm chart values.yaml OK
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Get helm chart values.yaml failed
+          content:
+            text/x-yaml:
+              schema:
+                $ref: '#/components/schemas/error_message'
+
+  /health:
+    get:
+      tags:
+      - health
+      summary: Returns the health condition of the xApp onboarder
+      operationId: get_health_check
+      responses:
+        200:
+          description: Health check OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+        500:
+          description: xApp onboarder is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+
+  /onboard:
+    post:
+      tags:
+      - onboard
+      summary: Onboard xApp using the xApp descriptor and schema in the request body
+      operationId: post_onboardx_apps
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/descriptor'
+        required: true
+      responses:
+        201:
+          description: xApp onboard successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+        400:
+          description: xApp descriptor format error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+        500:
+          description: xApp onboarder is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+      x-codegen-request-body-name: payload
+
+  /onboard/download:
+    post:
+      tags:
+      - onboard
+      summary: Onboard xApp after downloading the xApp descriptor and schema from
+        the URLs
+      operationId: post_onboardx_apps_download
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/descriptor_remote'
+        required: true
+      responses:
+        201:
+          description: xApp onboard successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+        400:
+          description: xApp descriptor format error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+        500:
+          description: xApp onboarder is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error_message'
+      x-codegen-request-body-name: payload
+
+components:
+  schemas:
+    descriptor:
+      required:
+      - config-file.json
+      type: object
+      properties:
+        config-file.json:
+          $ref: '#/components/schemas/config'
+        controls-schema.json:
+          type: object
+          properties: {}
+          description: Controls schema file body
+    config:
+      required:
+      - version
+      - name
+      - containers
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the xApp chart
+        version:
+          pattern: ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+          type: string
+          description: Version of the xApp chart
+        containers:
+          type: object
+          properties: {}
+          description: list of containers that the xApp will run
+        controls:
+          type: object
+          properties: {}
+          description: internal configuration of the xApp
+        metrics:
+          type: object
+          properties: {}
+          description: metrics provided by the xApp
+        messaging:
+          type: object
+          properties: {}
+          description: communication ports for each containers
+        livenessProbe:
+          type: object
+          properties: {}
+          description: liveness probe
+        readinessProbe:
+          type: object
+          properties: {}
+          description: readiness probe
+        rmr:
+          type: object
+          properties: {}
+          description: rmr info          
+    error_message:
+      required:
+      - error_message
+      - error_source
+      - status
+      type: object
+      properties:
+        error_source:
+          type: string
+          description: source of the error
+        error_message:
+          type: string
+          description: source of the error
+        status:
+          type: string
+          description: http response message
+    status:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+          description: status of the service
+    descriptor_remote:
+      required:
+      - config-file.json_url
+      type: object
+      properties:
+        config-file.json_url:
+          type: string
+          description: URL to download the config-file.json file
+        controls-schema.json_url:
+          type: string
+          description: URL to download the controls schema.json file
+  responses:
+    MaskError:
+      description: When any error occurs on mask
+      content:
+        application/json:
+          schema:
+            type: object
+    ParseError:
+      description: When a mask can't be parsed
+      content:
+        application/json:
+          schema:
+            type: object

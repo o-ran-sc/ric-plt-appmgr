@@ -1,0 +1,100 @@
+{
+	"xapp_name": "mcxapp",
+	"version": "1.0.2",
+	"containers": [
+		{
+			"name": "mcxapp",
+			"image": {
+				"registry": "nexus3.o-ran-sc.org:10002",
+				"name": "o-ran-sc/ric-app-mc",
+				"tag": "1.0.2"
+			},
+			"command": "/playpen/bin/container_start.sh"
+		}
+	],
+	"livenessProbe": {
+	    "exec": {
+	        "command": ["/usr/local/bin/health_ck"]
+	    },
+	    "initialDelaySeconds": 5,
+	    "periodSeconds": 15
+	},
+	"readinessProbe": {
+	    "httpGet": {
+	        "path": "ric/v1/health/alive",
+	        "port": 8080
+	    },
+	    "initialDelaySeconds": 5,
+	    "periodSeconds": 15
+	},
+	"messaging": {
+		"ports": [
+			{   
+				"name": "http",
+				"container": "mcxapp",
+				"port": 8080,
+				"description": "http service"
+			},
+			{
+				"name": "rmr-data",
+				"container": "mcxapp",
+				"port": 4560,
+				"txMessages":
+				[
+					"RIC_SUB_REQ",
+					"RIC_SUB_DEL_REQ"
+				],
+				"rxMessages":
+				[
+					"RIC_SUB_RESP",
+					"RIC_SUB_FAILURE",
+					"RIC_SUB_DEL_RESP",
+					"RIC_INDICATION"
+				],
+				"policies": [1,2],
+				"description": "rmr data port for mcxapp"
+			},
+			{
+				"name": "rmr-route",
+				"container": "mcxapp",
+				"port": 4561,
+				"description": "rmr route port for mcxapp"
+			}
+		]
+	},
+	"controls": {
+		"active": true,
+		"interfaceId": {
+			"globalENBId": {
+				"plmnId": 123456,
+				"eNBId": 5678
+			}
+		},
+		"ves_collector_address": "xapp-sandbox2.research.att.com:8888",
+		"measurement_interval": 10000,
+		"simulator_mode": "true",
+		"debug_mode": "true",
+		"local": {
+			"host": ":8080"
+		},
+		"logger": {
+			"level": 3
+		}
+	},
+	"metrics": [
+	    {
+	        "objectName": "UEEventStreamingCounters",
+	        "objectInstance": "SgNBAdditionRequest",
+	        "name": "SgNBAdditionRequest",
+	        "type": "counter",
+	        "description": "The total number of SG addition request events processed"
+	    },
+	    {
+	        "objectName": "UEEventStreamingCounters",
+	        "objectInstance": "SgNBAdditionRequestAcknowledge",
+	        "name": "SgNBAdditionRequestAcknowledge",
+	        "type": "counter",
+	        "description": "The total number of SG addition request acknowledge events processed"
+	    }
+	]
+}

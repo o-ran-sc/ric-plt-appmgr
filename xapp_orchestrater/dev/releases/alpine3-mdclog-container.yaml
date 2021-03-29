@@ -1,0 +1,11 @@
+---
+distribution_type: container
+container_release_tag: 0.0.4
+container_pull_registry: nexus3.o-ran-sc.org:10004
+container_push_registry: nexus3.o-ran-sc.org:10002
+project: it/dev
+ref: fbe8feb865f614062dfc1e6fbc082033b0f1f4ec
+tag_release: false
+containers:
+    - name: bldr-alpine3-mdclog
+      version: 0.0.4

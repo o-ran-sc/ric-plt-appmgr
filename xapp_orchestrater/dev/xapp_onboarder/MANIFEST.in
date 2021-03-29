@@ -1,0 +1,10 @@
+recursive-include * *.py
+recursive-include * *.yaml
+recursive-include * *.tpl
+recursive-include * *.conf
+recursive-include * *.pickle
+include xapp_onboarder/cli
+include xapp_onboarder/xapp_onboarder
+include README.md
+include LICENSES.txt
+include requirements.txt
