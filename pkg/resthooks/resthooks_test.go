@@ -30,7 +30,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"time"
-
 	"strconv"
 	"testing"
 
@@ -50,6 +49,7 @@ func TestMain(m *testing.M) {
 
 	mockedSdl = new(SdlMock)
 	mockedSdl2 = new(SdlMock)
+	NewResthook(false)
 	rh = createResthook(false, mockedSdl,mockedSdl2)
 	code := m.Run()
 	os.Exit(code)
@@ -269,6 +269,211 @@ func TestTeardown(t *testing.T) {
 	rh.FlushSubscriptions()
 }
 
+func TestUpdateAppDataFail1(t *testing.T) {
+	var reg models.RegisterRequest
+	var tEndpoint string = "10.104.237.59"
+	reg.HTTPEndpoint = &tEndpoint
+	rh.UpdateAppData(reg, false)
+}
+
+func TestUpdateAppDataFail2(t *testing.T) {
+	var mockSdlRetOk error
+	var params models.RegisterRequest
+
+	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
+	mockSdlRetNok := errors.New("some SDL error")
+	var tEndpoint1 string = "10.104.237.59:8087"
+	params.HTTPEndpoint = &tEndpoint1
+	serializedSubsReq2, err := json.Marshal(params)
+	if err != nil {
+		t.Logf("error in marshal .. %v", err)
+	}
+
+	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
+	serializedSubsReq, err := json.Marshal(subsReq)
+	assert.Nil(t, err)
+
+	key := "key-1"
+	value := "endpoints"
+	mockSdlGetRetVal := make(map[string]interface{})
+	mockSdlGetRetVal[key] = serializedSubsReq
+
+	mockSdlGetRetVal2 := make(map[string]interface{})
+	mockSdlGetRetVal2[value] = serializedSubsReq2
+	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
+	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal2, mockSdlRetOk).Once()
+
+	restHook := createResthook(false, mSdl,mSdl2)
+
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal2, mockSdlRetOk).Once()
+
+	ret := restHook.GetAppsInSDL()
+	if ret == nil {
+		assert.Nil(t, ret)
+	}
+}
+
+func TestGetAppsInSDLFail3(t *testing.T) {
+	var mockSdlRetOk error
+	var params models.RegisterRequest
+
+	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
+	mockSdlRetNok := errors.New("some SDL error")
+
+	serializedSubsReq1, err := json.Marshal(params)
+	if err != nil {
+		t.Logf("error in marshal .. %v", err)
+	}
+
+	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
+	serializedSubsReq, err := json.Marshal(subsReq)
+	assert.Nil(t, err)
+
+	key := "key-1"
+	value := "endpoints"
+	mockSdlGetRetVal := make(map[string]interface{})
+	mockSdlGetRetVal[key] = serializedSubsReq
+
+	mockSdlGetRetVal1 := make(map[string]interface{})
+	mockSdlGetRetVal1[key] = serializedSubsReq1
+
+	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
+	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+
+	restHook := createResthook(false, mSdl,mSdl2)
+
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+	ret2 := restHook.GetAppsInSDL()
+	if ret2 != nil {
+		t.Logf("SDL Returning: %s \n",*ret2)
+	}else{
+		assert.Nil(t, ret2)
+	}
+}
+
+func TestUpdateAppDataSucc(t *testing.T) {
+	var mockSdlRetOk error
+	var params models.RegisterRequest
+
+	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
+	mockSdlRetNok := errors.New("some SDL error")
+
+	var tEndpoint1 string = "10.104.237.59:8087"
+	params.HTTPEndpoint = &tEndpoint1
+	serializedSubsReq1, err := json.Marshal(params)
+	if err != nil {
+		t.Logf("error in marshal .. %v", err)
+	}
+	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
+	serializedSubsReq, err := json.Marshal(subsReq)
+	assert.Nil(t, err)
+
+	key := "key-1"
+	value := "endpoints"
+	mockSdlGetRetVal := make(map[string]interface{})
+	mockSdlGetRetVal[key] = serializedSubsReq
+
+	mockSdlGetRetVal1 := make(map[string]interface{})
+	mockSdlGetRetVal1[key] = serializedSubsReq1
+
+	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
+	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+
+	restHook := createResthook(false, mSdl,mSdl2)
+
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+	mSdl2.On("Set", mock.Anything).Return(mockSdlRetOk)
+	restHook.UpdateAppData(params, true)
+}
+
+func TestUpdateAppDataSucc1(t *testing.T) {
+	var mockSdlRetOk error
+	var params models.RegisterRequest
+
+	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
+	mockSdlRetNok := errors.New("some SDL error")
+
+	var tEndpoint1 string = "10.104.237.59:8087"
+	params.HTTPEndpoint = &tEndpoint1
+	appsindb := []string{ "10.104.237.59:8088 " , " ", " "," 10.104.237.59:8087"}
+	serializedSubsReq1, err := json.Marshal(appsindb)
+	if err != nil {
+		t.Logf("error in marshal .. %v", err)
+	}
+	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
+	serializedSubsReq, err := json.Marshal(subsReq)
+	assert.Nil(t, err)
+
+	key := "key-1"
+	value := "endpoints"
+	mockSdlGetRetVal := make(map[string]interface{})
+	mockSdlGetRetVal[key] = serializedSubsReq
+
+	mockSdlGetRetVal1 := make(map[string]interface{})
+	mockSdlGetRetVal1[value] = serializedSubsReq1
+
+	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
+	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+
+	restHook := createResthook(false, mSdl,mSdl2)
+
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+	mSdl2.On("Set", []string{value}).Return(mockSdlRetOk).Twice()
+
+	mSdl2.On("Remove").Return(mockSdlRetOk)
+	mSdl2.On("Set", mock.Anything).Return(mockSdlRetOk)
+	restHook.UpdateAppData(params, true)
+}
+
+
+func TestUpdateAppDataSucc2(t *testing.T) {
+	var mockSdlRetOk error
+	var params models.RegisterRequest
+
+	mSdl := new(SdlMock)
+	mSdl2 := new(SdlMock)
+	mockSdlRetNok := errors.New("some SDL error")
+
+	var tEndpoint1 string = "10.104.237.59:8087"
+	params.Config = "/temp/config.yaml"
+	params.HTTPEndpoint = &tEndpoint1
+	serializedSubsReq1, err := json.Marshal(tEndpoint1)
+	if err != nil {
+		t.Logf("error in marshal .. %v", err)
+	}
+	subsReq := createSubscription(models.EventTypeCreated, int64(5), int64(10), "http://localhost:8087/xapps_hook")
+	serializedSubsReq, err := json.Marshal(subsReq)
+	assert.Nil(t, err)
+
+	key := "key-1"
+	value := "endpoints"
+	mockSdlGetRetVal := make(map[string]interface{})
+	mockSdlGetRetVal[key] = serializedSubsReq
+
+	mockSdlGetRetVal1 := make(map[string]interface{})
+	mockSdlGetRetVal1[value] = serializedSubsReq1
+
+	mSdl.On("GetAll").Return([]string{key}, mockSdlRetOk).Twice()
+	mSdl.On("Get", []string{key}).Return(mockSdlGetRetVal, mockSdlRetNok).Once()
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+
+	restHook := createResthook(false, mSdl,mSdl2)
+
+	mSdl2.On("Get", []string{value}).Return(mockSdlGetRetVal1, mockSdlRetOk).Once()
+	mSdl2.On("Set", []string{value}).Return(mockSdlRetOk).Twice()
+
+	mSdl2.On("Remove").Return(mockSdlRetOk)
+	mSdl2.On("Set", mock.Anything).Return(mockSdlRetOk)
+	restHook.UpdateAppData(params, true)
+}
 func createSubscription(et models.EventType, maxRetries, retryTimer int64, targetUrl string) models.SubscriptionRequest {
 	return models.SubscriptionRequest{&models.SubscriptionData{et, &maxRetries, &retryTimer, &targetUrl}}
 }
@@ -332,6 +537,20 @@ func (m *SdlMock) expectDbSet(t *testing.T, subsReq models.SubscriptionRequest, 
 			//Validate that subscription request is set to SDL
 			assert.Equal(t, serializedSubReq, sdlKVs[1])
 		}).Return(mockRet).Once()
+}
+
+func TestPublishSubscription(t *testing.T) {
+	sub := createSubscription(models.EventTypeCreated, int64(2), int64(1), "http://localhost:8087/xapps_hook")
+	resp := rh.AddSubscription(sub)
+
+	xapp := getDummyXapp()
+
+	v, ok := rh.subscriptions.Get(resp.ID)
+	assert.True(t, ok)
+	if v == nil {
+		t.Logf("value : %+v",v)	
+	}
+	rh.PublishSubscription(xapp,models.EventTypeUndeployed)
 }
 
 type SdlMock struct {

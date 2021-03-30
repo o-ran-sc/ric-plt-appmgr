@@ -27,6 +27,7 @@ import (
         "strconv"
         "strings"
         "testing"
+	"github.com/stretchr/testify/assert"
         "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/cm"
         "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/appmgr"
         "gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
@@ -141,11 +142,12 @@ var kubeServiceOutput = `{
     }
 }`
 
+
 // Test cases
 func TestMain(m *testing.M) {
         appmgr.Init()
         appmgr.Logger.SetLevel(0)
-
+	
         code := m.Run()
         os.Exit(code)
 }
@@ -156,7 +158,6 @@ func TestInit(t *testing.T) {
         helmExec = mockedHelmExec
 
         NewHelm().Init()
-
         if cm.EnvHelmVersion == cm.HELM_VERSION_2{
                 expectedHelmCommand = "init -c --skip-refresh"
                 if caughtHelmExecArgs != expectedHelmCommand {
@@ -189,6 +190,45 @@ func TestAddRepoSuccess(t *testing.T) {
         if !strings.Contains(caughtHelmExecArgs, "repo add") {
                 t.Errorf("AddRepo failed: expected %v, got %v", "repo add", caughtHelmExecArgs)
         }
+	NewHelm().initDone = true
+	NewHelm().Initialize()
+}
+
+func TestFuncsWithHelmv3(t *testing.T){
+	var err error
+	name := "dymmy-xapp"
+
+	if err = os.Setenv("HELMVERSION", "3"); err != nil { 
+	        t.Logf("Tiller Env Setting Failed: %v", err.Error())      
+	}           
+	helm := NewHelm()
+	
+        xapp, err := helm.Status(name)
+        if err == nil {
+                t.Logf("Status returned: %v", err)
+        }
+        xapp2, err := helm.Delete(name)
+        if err != nil {
+	 	assert.NotEqual(t, err, "Error: release: not found")		
+        }else{
+		t.Logf("xapp : %+v, Xapp2 : %+v",xapp,xapp2)
+	}
+	helm.Init()
+	
+	if version := helm.GetVersion(name); version != "" {
+                t.Logf("GetVersion expected to return empty string, got %v", version)
+        }
+	
+	x := models.XappDescriptor{XappName: &name, Namespace: "ricxapp"}
+	x.OverrideFile = "../../test/dummy-xapp_values.json"
+        if args := helm.GetInstallArgs(x, false); args == "" {
+                t.Logf("GetInstallArgs failed: got %v", args)
+        }
+
+	if err = os.Setenv("HELMVERSION", "2"); err != nil { 
+	        t.Logf("after set Tiller Env Setting Failed: %v", err.Error())      
+	}
+ 
 }
 
 func TestAddRepoReturnsErrorIfNoUsernameFile(t *testing.T) {
@@ -258,14 +298,16 @@ func TestStatusSuccess(t *testing.T) {
 
 func TestStatusReturnsErrorIfHelmStatusFails(t *testing.T) {
         name := "dummy-xapp"
-
+	
         defer func() { resetHelmExecMock() }()
         helmExec = mockedHelmExec
         helmExecRetErr = errors.New("some helm command error")
 
         if _, err := NewHelm().Status(name); err == nil {
                 t.Errorf("Status expected to fail but it didn't")
-        }
+        }else{
+	 	assert.Equal(t, err, helmExecRetErr)		
+	}
 }
 
 func TestParseStatusSuccess(t *testing.T) {
@@ -282,7 +324,7 @@ func TestParseStatusSuccess(t *testing.T) {
         if err != nil {
                 t.Errorf("ParseStatus failed: %v", err)
         }
-
+	
         validateXappModel(t, xapp)
 
         if cm.EnvHelmVersion == cm.HELM_VERSION_2 {
@@ -312,6 +354,14 @@ func TestListSuccess(t *testing.T) {
         if caughtHelmExecArgs != expectedHelmCommand {
                 t.Errorf("List: expected %v, got %v", expectedHelmCommand, caughtHelmExecArgs)
         }
+	
+	var str models.AllDeployableXapps
+	str = NewHelm().SearchAll()	
+	if str != nil {
+		t.Logf("Search end..str : %s\n",str)	
+	}else{
+	 	assert.Nil(t,str)		
+	}
 }
 
 func TestListReturnsErrorIfHelmListFails(t *testing.T) {
@@ -322,6 +372,7 @@ func TestListReturnsErrorIfHelmListFails(t *testing.T) {
         if _, err := NewHelm().List(); err == nil {
                 t.Errorf("List expected to fail but it didn't")
         }
+
 }
 
 func TestDeleteSuccess(t *testing.T) {
@@ -366,7 +417,7 @@ func TestDeleteReturnsErrorIfHelmStatusFails(t *testing.T) {
 }
 
 func TestFetchSuccessIfCmdArgHasTestSuffix(t *testing.T) {
-        if err := NewHelm().Fetch("kissa", "koira"); err != nil {
+        if err := NewHelm().Fetch("lsfuis", "../../helm_chart/appmgr/values.yaml"); err != nil {
                 t.Errorf("Fetch failed: %v", err)
         }
 }
@@ -417,6 +468,7 @@ func TestGetEndpointInfoSuccess(t *testing.T) {
         kubeExecRetOut = kubeServiceOutput
 
         svc, port := NewHelm().GetEndpointInfo("dummy-xapp")
+	
         expectedSvc := "service-ricxapp-dummy-xapp-rmr.ricxapp"
         if svc != expectedSvc {
                 t.Errorf("GetEndpointInfo failed: expected %v, got %v", expectedSvc, svc)
@@ -491,8 +543,17 @@ func TestGetNamesSuccess(t *testing.T) {
         }
 }
 
+func TestGetNamesFail(t *testing.T) {
+        names, err := NewHelm().GetNames("helListAll")
+        if err != nil {
+                t.Errorf("GetNames failed: %v", err)
+        }
+        if reflect.DeepEqual(names, []string{"dummy-xapp", "dummy-xapp2"}) {
+                t.Errorf("GetNames succ")
+        }
+}
 func TestAddTillerEnv(t *testing.T) {
-        if NewHelm().AddTillerEnv() != nil {
+        if err := NewHelm().AddTillerEnv(); err != nil {
                 t.Errorf("AddTillerEnv failed!")
         }
 }

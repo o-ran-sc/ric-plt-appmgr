@@ -498,6 +498,7 @@ func TestGetNamesFromHelmRepoFailure(t *testing.T) {
 	helmExecRetOut = helmSearchOutput
 	helmExecRetErr = errors.New("Command failed!")
 
+	EnvHelmVersion = "3"
 	names := NewCM().GetNamesFromHelmRepo()
 	if names != nil {
 		t.Errorf("GetNamesFromHelmRepo failed: expected %v, got %v", expectedResult, names)
