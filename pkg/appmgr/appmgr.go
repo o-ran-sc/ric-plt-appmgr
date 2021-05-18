@@ -28,7 +28,7 @@ import (
 	"net/http"
 )
 
-const DEFAULT_CONFIG_FILE = "../../config/appmgr.yaml"
+const DEFAULT_CONFIG_FILE = "config/appmgr.yaml"
 
 var Logger *logger.Log
 
@@ -50,10 +50,26 @@ func parseCmd() string {
 func watch() {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Println("config file changed ", e.Name)
+		Logger.Info("config file changed ", e.Name)
+        setLoglevel()
 	})
 }
 
+func setLoglevel() {
+    var loglevel int
+    viper.UnmarshalKey("loglevel", &loglevel)
+    switch loglevel {
+    case 1:
+        Logger.Info("LOGLEVEL is set to ERROR\n")
+    case 2:
+        Logger.Info("LOGLEVEL is set to WARNING\n")
+    case 3:
+        Logger.Info("LOGLEVEL is set to INFO\n")
+    case 4:
+        Logger.Info("LOGLEVEL is set to DEBUG\n")
+    }
+    Logger.SetLevel(loglevel)
+}
 func loadConfig() {
 	viper.SetConfigFile(parseCmd())
 	if err := viper.ReadInConfig(); err != nil {
@@ -68,5 +84,7 @@ func loadConfig() {
 func Init() {
 	loadConfig()
 	Logger = logger.NewLogger("appmgr")
-	Logger.SetMdc("xm", "0.4.3")
+    Logger.SetFormat(0)
+    Logger.SetMdc("xm", "0.4.3")
+    setLoglevel()
 }
