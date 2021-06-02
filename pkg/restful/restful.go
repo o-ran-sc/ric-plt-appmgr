@@ -210,6 +210,7 @@ func httpGetXAppsconfig(url string) *string {
 	appmgr.Logger.Info("Invoked httprestful.httpGetXApps: " + url)
 	resp, err := http.Get(url)
 	if err != nil {
+		appmgr.Logger.Error("Error while querying config to Xapp: ", err.Error())
 		return nil
 	}
 	defer resp.Body.Close()
@@ -320,7 +321,6 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 		if xappconfig != nil {
 			data := parseConfig(xappconfig)
 			if data != nil {
-				appmgr.Logger.Info("iRetry Count = %v", i)
 				var xapp models.Xapp
 
 				xapp.Name = params.AppName
@@ -336,8 +336,9 @@ func (r *Restful) PrepareConfig(params models.RegisterRequest, updateflag bool) 
 			if configPresent == true {
 				break
 			}
-			time.Sleep(2 * time.Second)
 		}
+		appmgr.Logger.Info("Retrying query configuration from xapp, try no : %d", i)
+		time.Sleep(4 * time.Second)
 	}
 	return nil, errors.New("Unable to get configmap after 5 retries")
 }
@@ -432,9 +433,9 @@ func (r *Restful) symptomdataServer() {
 	http.HandleFunc("/ric/v1/symptomdata", func(w http.ResponseWriter, req *http.Request) {
 		d, _ := r.GetApps()
 		xappData := struct {
-			XappList		models.AllDeployedXapps `json:"xappList"`
-			ConfigList		models.AllXappConfig	`json:"configList"`
-			SubscriptionList	models.AllSubscriptions	`json:"subscriptionList"`
+			XappList         models.AllDeployedXapps `json:"xappList"`
+			ConfigList       models.AllXappConfig    `json:"configList"`
+			SubscriptionList models.AllSubscriptions `json:"subscriptionList"`
 		}{
 			d,
 			r.getAppConfig(),
