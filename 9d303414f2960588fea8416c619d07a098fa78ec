@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "576feae5_7d39921e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000002
+      },
+      "writtenOn": "2021-06-11T04:08:12Z",
+      "side": 1,
+      "message": "For review SDL version bump to v0.7.0.",
+      "revId": "9d303414f2960588fea8416c619d07a098fa78ec",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53"
+    }
+  ]
+}
