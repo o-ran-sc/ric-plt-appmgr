@@ -51,16 +51,22 @@ class xApp():
     def __init__(self, config_file, schema_file):
         self.config_file = config_file
         self.schema_file = schema_file
-
+ 
+        isnamepresent = 0
         if 'name' not in self.config_file:
-            raise xAppError(
-                "xApp chart name not found. (Caused by: config-file.json does not contain xapp_name attribute.)", 500)
+            isnamepresent = 1
+            if 'xapp_name' not in self.config_file:
+                raise xAppError(
+                    "xApp chart name not found. (Caused by: config-file.json does not contain xapp_name attribute.)", 500)
 
         if 'version' not in self.config_file:
             raise xAppError(
                 "xApp chart version not found. (Caused by: config-file.json does not contain version attribute.)", 500)
-
-        self.chart_name = self.config_file['name']
+        
+        if isnamepresent == 1:
+            self.chart_name = self.config_file['xapp_name']
+        else:
+            self.chart_name = self.config_file['name']
         self.chart_version = self.config_file['version']
         self.configmap_config_json_file = copy.deepcopy(self.config_file)
         self.chart_workspace_path = settings.CHART_WORKSPACE_PATH + '/' + self.chart_name + '-' + self.chart_version
