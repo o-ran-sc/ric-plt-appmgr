@@ -55,11 +55,13 @@ spec:
         - name: config-volume
           configMap:
             name: {{ include "ricxapp.configmapname" . }}-appconfig
+        {{- if .Values.controls }}
         {{- if .Values.controls.fileStorage }}
         - name: diskwriter
           hostPath: 
             path: {{ .Values.storage.mountPath }}
             type: DirectoryOrCreate
+        {{- end }}
         {{- end }}
       containers:
 {{- $containers := .Values.containers }}
@@ -106,9 +108,11 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: {{ .Values.appconfig.path }}
+            {{- if .Values.controls }}
             {{- if .Values.controls.fileStorage }}
             - name: diskwriter
               mountPath: {{ .Values.storage.mountPath }}
+            {{- end }}
             {{- end }}
           envFrom:
             - configMapRef:
