@@ -34,15 +34,20 @@ import (
 	"gerrit.o-ran-sc.org/r/ric-plt/appmgr/pkg/models"
 )
 
+//To encapsulate xApp Manager's keys under their own namespace in a DB
+const (
+	appmgrSdlNs = "appmgr"
+	appDbSdlNs  = "appdb"
+)
+
 func NewResthook(restoreData bool) *Resthook {
-	return createResthook(restoreData, sdl.NewSdlInstance("appmgr", sdl.NewDatabase()), sdl.NewSdlInstance("appdb", sdl.NewDatabase()))
+	return createResthook(restoreData, sdl.NewSyncStorage())
 }
 
-func createResthook(restoreData bool, sdlInst iSdl, sdlInst2 iSdl) *Resthook {
+func createResthook(restoreData bool, sdlInst iSdl) *Resthook {
 	rh := &Resthook{
 		client: &http.Client{},
 		db:     sdlInst,
-		db2:    sdlInst2,
 	}
 
 	if restoreData {
@@ -189,7 +194,7 @@ func (rh *Resthook) StoreSubscriptions(m cmap.ConcurrentMap) {
 			return
 		}
 
-		if err := rh.db.Set(s.Id, data); err != nil {
+		if err := rh.db.Set(appmgrSdlNs, s.Id, data); err != nil {
 			appmgr.Logger.Error("DB.session.Set failed: %v ", err.Error())
 		}
 	}
@@ -199,14 +204,14 @@ func (rh *Resthook) RestoreSubscriptions() (m cmap.ConcurrentMap) {
 	rh.VerifyDBConnection()
 
 	m = cmap.New()
-	keys, err := rh.db.GetAll()
+	keys, err := rh.db.GetAll(appmgrSdlNs)
 	if err != nil {
 		appmgr.Logger.Error("DB.session.GetAll failed: %v ", err.Error())
 		return
 	}
 
 	for _, key := range keys {
-		value, err := rh.db.Get([]string{key})
+		value, err := rh.db.Get(appmgrSdlNs, []string{key})
 		if err != nil {
 			appmgr.Logger.Error("DB.session.Get failed: %v ", err.Error())
 			return
@@ -228,7 +233,7 @@ func (rh *Resthook) RestoreSubscriptions() (m cmap.ConcurrentMap) {
 func (rh *Resthook) VerifyDBConnection() {
 	// Test DB connection, and wait until ready!
 	for {
-		if _, err := rh.db.GetAll(); err == nil {
+		if _, err := rh.db.GetAll(appmgrSdlNs); err == nil {
 			return
 		}
 		appmgr.Logger.Error("Database connection not ready, waiting ...")
@@ -237,7 +242,7 @@ func (rh *Resthook) VerifyDBConnection() {
 }
 
 func (rh *Resthook) FlushSubscriptions() {
-	rh.db.RemoveAll()
+	rh.db.RemoveAll(appmgrSdlNs)
 	rh.subscriptions = cmap.New()
 }
 
@@ -252,7 +257,7 @@ func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool
 		params.Config = ""
 	}
 
-	value, err := rh.db2.Get([]string{"endpoints"})
+	value, err := rh.db.Get(appDbSdlNs, []string{"endpoints"})
 	if err != nil {
 		appmgr.Logger.Error("DB.session.Get failed: %v ", err.Error())
 		return
@@ -269,7 +274,7 @@ func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool
 		for i, _ := range newstring {
 			if len(newstring) == 1 && strings.Contains(newstring[i], *params.HTTPEndpoint) {
 				appmgr.Logger.Info("Removing Key %s", *params.HTTPEndpoint)
-				rh.db2.Remove([]string{"endpoints"})
+				rh.db.Remove(appDbSdlNs, []string{"endpoints"})
 				dbflag = true
 				break
 			}
@@ -281,7 +286,7 @@ func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool
 			appsindb = append(appsindb, newstring[i])
 			data = strings.Join(appsindb, " ")
 		}
-		rh.db2.Set("endpoints", strings.TrimSpace(data))
+		rh.db.Set(appDbSdlNs, "endpoints", strings.TrimSpace(data))
 	}
 
 	if dbflag == false {
@@ -292,12 +297,12 @@ func (rh *Resthook) UpdateAppData(params models.RegisterRequest, updateflag bool
 		}
 		appsindb = append(appsindb, string(xappData))
 		data = strings.Join(appsindb, " ")
-		rh.db2.Set("endpoints", strings.TrimSpace(data))
+		rh.db.Set(appDbSdlNs, "endpoints", strings.TrimSpace(data))
 	}
 }
 
 func (rh *Resthook) GetAppsInSDL() *string {
-	value, err := rh.db2.Get([]string{"endpoints"})
+	value, err := rh.db.Get(appDbSdlNs, []string{"endpoints"})
 	if err != nil {
 		appmgr.Logger.Error("DB.session.Get failed: %v ", err.Error())
 		return nil

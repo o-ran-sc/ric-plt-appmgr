@@ -1,7 +1,7 @@
 gerrit.o-ran-sc.org/r/com/golog.git v0.0.2 h1:Ix6SgFuzd6yW6Ur6+qDlGhDO65UYs8PiIkeAL1VaQ2o=
 gerrit.o-ran-sc.org/r/com/golog.git v0.0.2/go.mod h1:A7hUL52YQSO4dFIZNcj76XQ09C9PftAe3LyL7kqBnok=
-gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.7.0 h1:mxlBo54jxwHHFmGYzFI+fBIkOGwarQP4dx2KBxQ8ln8=
-gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.7.0/go.mod h1:KCHu4JkWnw2Ro6P747wU9S2t7zxFLmBNCiYvGZo3CHo=
+gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.8.0 h1:H7GtCRC+pGn6oOxYalUZr7LinQX5jQCVa+ConX7PB5Q=
+gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.8.0/go.mod h1:KCHu4JkWnw2Ro6P747wU9S2t7zxFLmBNCiYvGZo3CHo=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/PuerkitoBio/purell v1.1.0/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=

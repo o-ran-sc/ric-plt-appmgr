@@ -19,6 +19,12 @@ FROM nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-ubuntu18-c-go:1.9.0 AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
+# Update CA certificates
+RUN apt update && apt install --reinstall -y \
+  ca-certificates \
+  && \
+  update-ca-certificates
+
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Install helm
@@ -70,8 +76,8 @@ CMD ["/bin/bash"]
 FROM ubuntu:18.04 as appmgr
 
 RUN apt-get update -y \
-    && apt-get install -y sudo openssl ca-certificates ca-cacert \
-    && apt-get clean
+    && apt-get install --reinstall -y sudo openssl ca-certificates ca-cacert \
+    && apt-get clean && update-ca-certificates
 
 #
 # libraries and helm

@@ -36,7 +36,6 @@ type Resthook struct {
 	client        *http.Client
 	subscriptions cmap.ConcurrentMap
 	db            iSdl
-        db2           iSdl
 	Seq           int64
 }
 
@@ -49,9 +48,9 @@ type SubscriptionNotification struct {
 }
 
 type iSdl interface {
-	Set(pairs ...interface{}) error
-	Get(keys []string) (map[string]interface{}, error)
-	GetAll() ([]string, error)
-	RemoveAll() error
-	Remove([]string) error
+	Set(ns string, pairs ...interface{}) error
+	Get(ns string, keys []string) (map[string]interface{}, error)
+	GetAll(ns string) ([]string, error)
+	RemoveAll(ns string) error
+	Remove(ns string, keys []string) error
 }
