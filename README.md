@@ -385,6 +385,13 @@ $ appmgrcli subs list
 
 ```
 
+
+# Building container image for arm64-based instances
+docker build -f Dockerfile-arm64 -t ric-plt-appmgr:0.4.3 .
+
+#NOTE: builder image needed is in dev repo https://gerrit.o-ran-sc.org/r/admin/repos/it/dev
+
+
 # Additional info
 ```sh
 Todo
