@@ -39,6 +39,11 @@ committers:
       company: 'nokia'
       id: 'juhhytti'
       timezone: 'Unknown/Unknown'
+    - name: 'Suchismita Jena'
+      email: 'suchismita.jena@nokia.com'
+      company: 'nokia'
+      id: 'suchismita13'
+      timezone: 'Unknown/Unknown'
     - name: 'Abukar Mohamed'
       email: 'abukar.mohamed@nokia.com'
       company: 'nokia'
@@ -48,6 +53,6 @@ tsc:
     # yamllint disable rule:line-length
     approval: 'missing'
     changes:
-        - type: ''
-          name: ''
+        - type: 'promotion'
+          name: 'Suchismita Jena'
           link: ''
