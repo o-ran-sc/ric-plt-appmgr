@@ -15,7 +15,7 @@
 
 #-----------------------------------------------------------
 
-FROM nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-ubuntu18-c-go:1.9.0 AS appmgr-build
+FROM nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-ubuntu20-c-go:1.0.0 AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
@@ -73,7 +73,7 @@ RUN gofmt -l $(find cmd/ pkg/  -name '*.go' -not -name '*_test.go')
 CMD ["/bin/bash"]
 
 #----------------------------------------------------------
-FROM ubuntu:18.04 as appmgr
+FROM ubuntu:20.04 as appmgr
 
 RUN apt-get update -y \
     && apt-get install --reinstall -y sudo openssl ca-certificates ca-cacert \
