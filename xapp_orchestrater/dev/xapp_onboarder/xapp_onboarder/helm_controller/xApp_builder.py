@@ -235,6 +235,7 @@ class xApp():
             raise xAppError( "xApp " + self.chart_name + '-' + self.chart_version + " distribution failed. (Caused by: " + str(err) + ")" , err.status_code)
 
     def install_chart_package(xapp_chart_name, version, namespace, overridefile):
+        dirTomove = "/tmp/helm_template"
         try: 
           tar = tarfile.open(xapp_chart_name + "-" + version + ".tgz")
           tar.extractall()
@@ -250,13 +251,19 @@ class xApp():
         except Exception as err:
             print(err)
             status = 0
-        subprocess.run(["rm", "-rf", xapp_chart_name ])
-        subprocess.run(["rm", "-rf", xapp_chart_name + "-" + version + ".tgz" ])
+        if (os.getcwd() != dirTomove):
+            subprocess.run(["mv", xapp_chart_name, dirTomove])
+            PATH=xapp_chart_name + "-" + version + ".tgz"
+            if os.path.isfile(PATH):
+                subprocess.run(["mv", xapp_chart_name + "-" + version + ".tgz", dirTomove ])
         return status
 
-    def uninstall_chart_package(xapp_chart_name, namespace):
-
+    def uninstall_chart_package(xapp_chart_name, namespace, version):
+        dirTomove = "/tmp/helm_template/"
         try:
+          subprocess.run(["rm", "-rf", dirTomove + xapp_chart_name])
+          if version != "" :
+            subprocess.run(["rm", "-rf", dirTomove+xapp_chart_name + "-" + version + ".tgz"])
           process = subprocess.run(["helm", "delete", xapp_chart_name, "--namespace=" + namespace], stdout=PIPE, stderr=PIPE, check=True)
           status = 1
 

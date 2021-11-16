@@ -46,8 +46,8 @@ class cli():
         content, status = download_chart_package(xapp_chart_name=xapp_chart_name, version=version)
 
         if status != 200:
-            return json.dumps(content, indent=4, sort_keys=True)
-
+            #return json.dumps(content, indent=4, sort_keys=True)
+            return {"status": "NOT_OK"}
         try:
             if os.path.isabs(output_path):
                 path = output_path + '/' + xapp_chart_name + '-' + version + '.tgz'
@@ -95,15 +95,17 @@ class cli():
         """Installing the xapp using the charts name and version,optionally can provide the yaml file to override"""
         resp = self.download_helm_chart(xapp_chart_name, version)
 
+        if resp['status'] == "NOT_OK":
+            return {"status": "Not OK"}
         status = xApp.install_chart_package(xapp_chart_name=xapp_chart_name, version=version, namespace=namespace,overridefile=overridefile)
         if status == 1:
            return {"status": "OK"}
         else:
            return {"status": "NOT_OK"} 
 
-    def uninstall(self, xapp_chart_name ,namespace):
-        """Uninstalling the xapp using the charts name"""
-        status = xApp.uninstall_chart_package(xapp_chart_name=xapp_chart_name, namespace=namespace)
+    def uninstall(self, xapp_chart_name, namespace, version=""):
+        """Uninstalling the xapp using the charts name, --version can be provided optionally"""
+        status = xApp.uninstall_chart_package(xapp_chart_name=xapp_chart_name, namespace=namespace, version=version)
         if status == 1:
            return {"status": "OK"}
         else:
@@ -112,13 +114,13 @@ class cli():
 
     def upgrade(self, xapp_chart_name, old_version , new_version, namespace):
         """Upgrading the xapp to the new version specified"""
-        resp = self.uninstall(xapp_chart_name, namespace) 
+        resp = self.uninstall(xapp_chart_name, namespace,old_version) 
         if resp["status"] == "OK":
            status = self.install(xapp_chart_name, new_version, namespace)
            if status["status"] == "OK":
               return {"status": "OK"}
            else:
-              self.uninstall(xapp_chart_name, namespace)
+              self.uninstall(xapp_chart_name, namespace,new_version)
               self.install(xapp_chart_name, old_version, namespace)
               return {"status": "NOT_OK"}
         else:
