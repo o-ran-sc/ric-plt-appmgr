@@ -95,7 +95,7 @@ schema = {
                                 "examples": [
                                     "nexus3.o-ran-sc.org:10002"
                                 ],
-                                "pattern": "^[A-Za-z0-9\\.-]{1,}\\.[A-Za-z]{1,}(?:\\:\\d+)?$"
+                                "pattern": "^([A-Za-z0-9\\.-]{1,}\\.[A-Za-z]{1,}|((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)))(?:\\:\\d+)?$"
                             },
                             "name": {
                                 "$id": "#/properties/containers/items/properties/image/properties/name",
