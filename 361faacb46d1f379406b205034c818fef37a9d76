@@ -1,0 +1,9 @@
+Code-Review+2: Thoralf Czichy <thoralf.czichy@nokia.com>
+Verified+1: ORAN Required GHA <releng+oran.required.gha@linuxfoundation.org>
+Verified+1: ORAN Jobbuilder <releng+oran-jobbuilder@linuxfoundation.org>
+Verified+1: Thoralf Czichy <thoralf.czichy@nokia.com>
+Submitted-by: Thoralf Czichy <thoralf.czichy@nokia.com>
+Submitted-at: Fri, 01 Sep 2023 08:06:29 +0000
+Reviewed-on: https://gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/+/11720
+Project: ric-plt/appmgr
+Branch: refs/heads/master
