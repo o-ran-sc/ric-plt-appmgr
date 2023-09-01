@@ -28,3 +28,4 @@ Welcome to O-RAN Application Manager Documentation
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
