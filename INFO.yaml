@@ -34,25 +34,21 @@ repositories:
     - ric-plt/appmgr
 committers:
     - <<: *oran_ric_plt_appmgr_ptl
-    - name: 'Juha Hyttinen'
-      email: 'juha.hyttinen@nokia.com'
-      company: 'nokia'
-      id: 'juhhytti'
-      timezone: 'Unknown/Unknown'
     - name: 'Suchismita Jena'
       email: 'suchismita.jena@nokia.com'
       company: 'nokia'
       id: 'suchismita13'
       timezone: 'Unknown/Unknown'
-    - name: 'Abukar Mohamed'
-      email: 'abukar.mohamed@nokia.com'
-      company: 'nokia'
-      id: 'Nune'
-      timezone: 'Unknown/Unknown'
 tsc:
     # yamllint disable rule:line-length
     approval: 'missing'
     changes:
+        - type: 'removal'
+          name: 'Abukar Mohamed'
+          link: ''
+        - type: 'removal'
+          name: 'Juha Hyttinen'
+          link: ''
         - type: 'promotion'
           name: 'Suchismita Jena'
           link: ''
