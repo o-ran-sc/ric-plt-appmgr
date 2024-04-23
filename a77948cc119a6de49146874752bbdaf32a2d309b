@@ -1,0 +1,8 @@
+Verified+1: ORAN Jobbuilder <releng+oran-jobbuilder@linuxfoundation.org>
+Verified+1: ORAN Required GHA <releng+oran.required.gha@linuxfoundation.org>
+Code-Review+2: Matthew Watkins <mwatkins@linuxfoundation.org>
+Submitted-by: Matthew Watkins <mwatkins@linuxfoundation.org>
+Submitted-at: Tue, 23 Apr 2024 13:18:57 +0000
+Reviewed-on: https://gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/+/12695
+Project: ric-plt/appmgr
+Branch: refs/heads/master
