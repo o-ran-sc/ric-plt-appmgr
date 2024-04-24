@@ -14,7 +14,7 @@
 #   limitations under the License.                                             #
 ################################################################################
 
-from flask_restplus import fields
+from flask_restx import fields
 from xapp_onboarder.api.api_reference import api
 
 xapp_descriptor_post = api.model('descriptor', {

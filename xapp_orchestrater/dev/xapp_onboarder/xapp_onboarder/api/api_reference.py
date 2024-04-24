@@ -16,7 +16,7 @@
 
 import logging
 
-from flask_restplus import Api
+from flask_restx import Api
 from xapp_onboarder.server import settings
 
 log = logging.getLogger(__name__)

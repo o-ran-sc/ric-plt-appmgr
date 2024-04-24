@@ -16,7 +16,7 @@
 
 import logging
 from flask import make_response
-from flask_restplus import Resource
+from flask_restx import Resource
 from xapp_onboarder.api.api_reference import api
 from xapp_onboarder.api.charts import get_charts_list, download_chart_package, download_values_yaml
 from xapp_onboarder.api.models.response_models import error_message_model
