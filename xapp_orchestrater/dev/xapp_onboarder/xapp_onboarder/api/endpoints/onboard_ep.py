@@ -16,7 +16,7 @@
 
 import logging
 from flask import request
-from flask_restplus import Resource
+from flask_restx import Resource
 from xapp_onboarder.api.models import request_models
 from xapp_onboarder.api.api_reference import api
 from xapp_onboarder.api.models.response_models import status_message_model, error_message_model

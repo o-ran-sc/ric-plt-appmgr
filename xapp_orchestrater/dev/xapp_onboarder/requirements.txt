@@ -5,7 +5,7 @@ chardet==3.0.4
 Click==7.0
 fire==0.2.1
 Flask==1.1.1
-flask-restplus==0.13.0
+flask-restx==1.1.0
 idna==2.9
 importlib-metadata==1.5.0
 itsdangerous==1.1.0
@@ -15,9 +15,9 @@ MarkupSafe==1.1.1
 pyrsistent==0.15.7
 pytz==2019.3
 PyYAML==5.3
-requests==2.23.0
-six==1.14.0
+requests==2.31.0
+six==1.16.0
 termcolor==1.1.0
 urllib3==1.25.8
 Werkzeug==0.16.1
-zipp==3.0.0
+zipp==3.1.0

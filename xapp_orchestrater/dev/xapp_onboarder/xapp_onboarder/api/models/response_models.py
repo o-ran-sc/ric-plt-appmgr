@@ -14,7 +14,7 @@
 #   limitations under the License.                                             #
 ################################################################################
 
-from flask_restplus import fields, marshal
+from flask_restx import fields, marshal
 from xapp_onboarder.api.api_reference import api
 
 error_message_model = api.model('error_message', {
