@@ -15,7 +15,7 @@
 
 #-----------------------------------------------------------
 
-FROM nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-ubuntu20-c-go:1.0.0 AS appmgr-build
+FROM nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-ubuntu22-c-go:1.0.0 AS appmgr-build
 
 RUN apt-get update -y && apt-get install -y jq
 
@@ -25,7 +25,15 @@ RUN apt update && apt install --reinstall -y \
   && \
   update-ca-certificates
 
-ENV PATH="/usr/local/go/bin:${PATH}"
+ARG GOVERSION="1.22.5"
+RUN wget -nv https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz \
+     && tar -xf go${GOVERSION}.linux-amd64.tar.gz \
+     && mv go /opt/go/${GOVERSION} \
+     && rm -f go*.gz
+
+
+ENV DEFAULTPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=$DEFAULTPATH:/usr/local/go/bin:/opt/go/${GOVERSION}/bin:/root/go/bin
 
 # Install helm
 #RUN wget -nv https://storage.googleapis.com/kubernetes-helm/helm-${HELMVERSION}-linux-amd64.tar.gz \
@@ -73,7 +81,7 @@ RUN gofmt -l $(find cmd/ pkg/  -name '*.go' -not -name '*_test.go')
 CMD ["/bin/bash"]
 
 #----------------------------------------------------------
-FROM ubuntu:20.04 as appmgr
+FROM ubuntu:22.04 as appmgr
 
 RUN apt-get update -y \
     && apt-get install --reinstall -y sudo openssl ca-certificates ca-cacert \

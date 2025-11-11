@@ -1,6 +1,6 @@
 module gerrit.o-ran-sc.org/r/ric-plt/appmgr
 
-go 1.18
+go 1.22
 
 replace gerrit.o-ran-sc.org/r/ric-plt/sdlgo => gerrit.o-ran-sc.org/r/ric-plt/sdlgo.git v0.8.0
 
