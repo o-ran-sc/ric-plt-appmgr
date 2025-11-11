@@ -1,10 +1,10 @@
 ---
 distribution_type: container
-container_release_tag: 0.5.8
+container_release_tag: 0.5.9
 container_pull_registry: nexus3.o-ran-sc.org:10004
 container_push_registry: nexus3.o-ran-sc.org:10002
 project: appmgr
-ref: da426ab5504a9b74a138ce429ca4ef91a375d417
+ref: 3a812f7d2af5acd3a73aaa058cba9fd1893bd1c3
 containers:
    - name: ric-plt-appmgr
-     version: 0.5.8
+     version: 0.5.9
