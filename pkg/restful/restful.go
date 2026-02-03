@@ -56,6 +56,164 @@ type XappData struct {
 	xappInstance     *models.XappInstance
 }
 
+var AllowedRmrMessages = map[string]bool{
+	// ---------------------------------------------------------------------
+	// Non-Routable
+	// ---------------------------------------------------------------------
+	"RIC_UNDEFINED": true,
+
+	// ---------------------------------------------------------------------
+	// RMR Reserved Message Types
+	// ---------------------------------------------------------------------
+	"RMRRM_TABLE_DATA":  true,
+	"RMRRM_REQ_TABLE":   true,
+	"RMRRM_TABLE_STATE": true,
+
+	// ---------------------------------------------------------------------
+	// System Support Message Types
+	// ---------------------------------------------------------------------
+	"RIC_HEALTH_CHECK_REQ":  true,
+	"RIC_HEALTH_CHECK_RESP": true,
+	"RIC_ALARM":             true,
+	"RIC_ALARM_QUERY":       true,
+	"RIC_METRICS":           true,
+
+	// ---------------------------------------------------------------------
+	// Unclassified Message Types
+	// ---------------------------------------------------------------------
+	"RIC_SCTP_CONNECTION_FAILURE": true,
+	"RIC_SCTP_CLEAR_ALL":          true,
+	"E2_TERM_INIT":                true,
+	"E2_TERM_KEEP_ALIVE_REQ":      true,
+	"E2_TERM_KEEP_ALIVE_RESP":     true,
+	"RAN_CONNECTED":               true,
+	"RAN_RESTARTED":               true,
+	"RAN_RECONFIGURED":            true,
+	"RIC_ENB_LOAD_INFORMATION":    true,
+	"RIC_ERROR_INDICATION":        true,
+	"RIC_SN_STATUS_TRANSFER":      true,
+	"RIC_UE_CONTEXT_RELEASE":      true,
+
+	"RIC_X2_SETUP_REQ":     true,
+	"RIC_X2_SETUP_RESP":    true,
+	"RIC_X2_SETUP_FAILURE": true,
+	"RIC_X2_RESET":         true,
+	"RIC_X2_RESET_RESP":    true,
+
+	"RIC_ENB_CONF_UPDATE":         true,
+	"RIC_ENB_CONF_UPDATE_ACK":     true,
+	"RIC_ENB_CONF_UPDATE_FAILURE": true,
+
+	"RIC_RES_STATUS_REQ":         true,
+	"RIC_RES_STATUS_RESP":        true,
+	"RIC_RES_STATUS_FAILURE":     true,
+	"RIC_RESOURCE_STATUS_UPDATE": true,
+
+	"RIC_SGNB_ADDITION_REQ":        true,
+	"RIC_SGNB_ADDITION_ACK":        true,
+	"RIC_SGNB_ADDITION_REJECT":     true,
+	"RIC_SGNB_RECONF_COMPLETE":     true,
+	"RIC_SGNB_MOD_REQUEST":         true,
+	"RIC_SGNB_MOD_REQUEST_ACK":     true,
+	"RIC_SGNB_MOD_REQUEST_REJ":     true,
+	"RIC_SGNB_MOD_REQUIRED":        true,
+	"RIC_SGNB_MOD_CONFIRM":         true,
+	"RIC_SGNB_MOD_REFUSE":          true,
+	"RIC_SGNB_RELEASE_REQUEST":     true,
+	"RIC_SGNB_RELEASE_REQUEST_ACK": true,
+	"RIC_SGNB_RELEASE_REQUIRED":    true,
+	"RIC_SGNB_RELEASE_CONFIRM":     true,
+
+	"RIC_RRC_TRANSFER":          true,
+	"RIC_ENDC_X2_SETUP_REQ":     true,
+	"RIC_ENDC_X2_SETUP_RESP":    true,
+	"RIC_ENDC_X2_SETUP_FAILURE": true,
+
+	"RIC_ENDC_CONF_UPDATE":         true,
+	"RIC_ENDC_CONF_UPDATE_ACK":     true,
+	"RIC_ENDC_CONF_UPDATE_FAILURE": true,
+
+	"RIC_SECONDARY_RAT_DATA_USAGE_REPORT": true,
+	"RIC_GNB_STATUS_INDICATION":           true,
+
+	"RIC_E2_SETUP_REQ":     true,
+	"RIC_E2_SETUP_RESP":    true,
+	"RIC_E2_SETUP_FAILURE": true,
+	"RIC_E2_RESET_REQ":     true,
+	"RIC_E2_RESET_RESP":    true,
+
+	"RIC_E2_RAN_ERROR_INDICATION": true,
+	"RIC_E2_RIC_ERROR_INDICATION": true,
+
+	"RAN_E2_RESET_REQ":  true,
+	"RAN_E2_RESET_RESP": true,
+
+	// ---------------------------------------------------------------------
+	// Subscription-related
+	// ---------------------------------------------------------------------
+	"RIC_SUB_REQ":         true,
+	"RIC_SUB_RESP":        true,
+	"RIC_SUB_FAILURE":     true,
+	"RIC_SUB_DEL_REQ":     true,
+	"RIC_SUB_DEL_RESP":    true,
+	"RIC_SUB_DEL_FAILURE": true,
+
+	// ---------------------------------------------------------------------
+	// Service Update
+	// ---------------------------------------------------------------------
+	"RIC_SERVICE_UPDATE":         true,
+	"RIC_SERVICE_UPDATE_ACK":     true,
+	"RIC_SERVICE_UPDATE_FAILURE": true,
+
+	// ---------------------------------------------------------------------
+	// Control Messages
+	// ---------------------------------------------------------------------
+	"RIC_CONTROL_REQ":     true,
+	"RIC_CONTROL_ACK":     true,
+	"RIC_CONTROL_FAILURE": true,
+
+	"RIC_INDICATION":    true,
+	"RIC_SERVICE_QUERY": true,
+
+	// ---------------------------------------------------------------------
+	// DC / A1 / TS messages
+	// ---------------------------------------------------------------------
+	"DC_ADM_INT_CONTROL":     true,
+	"DC_ADM_INT_CONTROL_ACK": true,
+	"DC_ADM_GET_POLICY":      true,
+	"DC_ADM_GET_POLICY_ACK":  true,
+
+	"A1_POLICY_REQ":   true,
+	"A1_POLICY_RESP":  true,
+	"A1_POLICY_QUERY": true,
+
+	"TS_UE_LIST":        true,
+	"TS_QOE_PRED_REQ":   true,
+	"TS_QOE_PREDICTION": true,
+	"TS_ANOMALY_UPDATE": true,
+	"TS_ANOMALY_ACK":    true,
+
+	"MC_REPORT": true,
+
+	"DCAPTERM_RTPM_RMR_MSGTYPE": true,
+	"DCAPTERM_GEO_RMR_MSGTYPE":  true,
+
+	// ---------------------------------------------------------------------
+	// Deprecated (still allowed to avoid breaking older xApps)
+	// ---------------------------------------------------------------------
+	"RIC_X2_SETUP":                     true,
+	"RIC_X2_RESPONSE":                  true,
+	"RIC_X2_RESOURCE_STATUS_REQUEST":   true,
+	"RIC_X2_RESOURCE_STATUS_RESPONSE":  true,
+	"RIC_X2_LOAD_INFORMATION":          true,
+	"RIC_E2_TERMINATION_HC_REQUEST":    true,
+	"RIC_E2_TERMINATION_HC_RESPONSE":   true,
+	"RIC_E2_MANAGER_HC_REQUEST":        true,
+	"RIC_E2_MANAGER_HC_RESPONSE":       true,
+	"RIC_CONTROL_XAPP_CONFIG_REQUEST":  true,
+	"RIC_CONTROL_XAPP_CONFIG_RESPONSE": true,
+}
+
 var xappmap = map[string]map[string]*XappData{}
 
 func NewRestful() *Restful {
@@ -234,23 +392,40 @@ func httpGetXAppsconfig(url string) *string {
 	}
 }
 
+func validateMsg(msg string) error {
+	if !AllowedRmrMessages[msg] {
+		return fmt.Errorf("invalid RMR message type: %s", msg)
+	}
+	return nil
+}
+
 func parseConfig(config *string) *appmgr.RtmData {
 	var p fastjson.Parser
 	var msgs appmgr.RtmData
 
 	v, err := p.Parse(*config)
 	if err != nil {
-		appmgr.Logger.Info("fastjson.Parser for failed: %v", err)
+		appmgr.Logger.Info("fastjson.Parser failed: %v", err)
 		return nil
 	}
 
 	if v.Exists("rmr") {
 		for _, m := range v.GetArray("rmr", "txMessages") {
-			msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
+			msg := strings.Trim(m.String(), `"`)
+			if err := validateMsg(msg); err != nil {
+				appmgr.Logger.Error("Rejecting xApp: %v", err)
+				return nil
+			}
+			msgs.TxMessages = append(msgs.TxMessages, msg)
 		}
 
 		for _, m := range v.GetArray("rmr", "rxMessages") {
-			msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+			msg := strings.Trim(m.String(), `"`)
+			if err := validateMsg(msg); err != nil {
+				appmgr.Logger.Error("Rejecting xApp: %v", err)
+				return nil
+			}
+			msgs.RxMessages = append(msgs.RxMessages, msg)
 		}
 
 		for _, m := range v.GetArray("rmr", "policies") {
@@ -259,14 +434,25 @@ func parseConfig(config *string) *appmgr.RtmData {
 			}
 		}
 	} else {
+		// messaging.ports[*].txMessages/rxMessages format
 		for _, p := range v.GetArray("messaging", "ports") {
-			appmgr.Logger.Info("txMessages=%v, rxMessages=%v", p.GetArray("txMessages"), p.GetArray("rxMessages"))
+
 			for _, m := range p.GetArray("txMessages") {
-				msgs.TxMessages = append(msgs.TxMessages, strings.Trim(m.String(), `"`))
+				msg := strings.Trim(m.String(), `"`)
+				if err := validateMsg(msg); err != nil {
+					appmgr.Logger.Error("Rejecting xApp: %v", err)
+					return nil
+				}
+				msgs.TxMessages = append(msgs.TxMessages, msg)
 			}
 
 			for _, m := range p.GetArray("rxMessages") {
-				msgs.RxMessages = append(msgs.RxMessages, strings.Trim(m.String(), `"`))
+				msg := strings.Trim(m.String(), `"`)
+				if err := validateMsg(msg); err != nil {
+					appmgr.Logger.Error("Rejecting xApp: %v", err)
+					return nil
+				}
+				msgs.RxMessages = append(msgs.RxMessages, msg)
 			}
 
 			for _, m := range p.GetArray("policies") {
