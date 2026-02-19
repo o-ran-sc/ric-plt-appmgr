@@ -1,0 +1,10 @@
+Verified+1: ORAN Required GHA <releng+oran.required.gha@linuxfoundation.org>
+Code-Review+2: Abdul Wahid W <abdulwahid.w@nokia.com>
+Verified+1: ORAN Jobbuilder <releng+oran-jobbuilder@linuxfoundation.org>
+Verified+1: Abdul Wahid W <abdulwahid.w@nokia.com>
+Submitted-by: Abdul Wahid W <abdulwahid.w@nokia.com>
+Submitted-at: Thu, 19 Feb 2026 01:37:29 +0000
+Reviewed-on: https://gerrit.o-ran-sc.org/r/c/ric-plt/appmgr/+/15438
+Comments-Total: 1
+Project: ric-plt/appmgr
+Branch: refs/heads/master
