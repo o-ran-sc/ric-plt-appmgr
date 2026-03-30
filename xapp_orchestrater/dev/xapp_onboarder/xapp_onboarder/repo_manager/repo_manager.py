@@ -141,7 +141,7 @@ class repoManager():
 
     def download_xapp_chart(self, xapp_chart_name, version):
 
-        request_path = self.repo_url+'/charts/'+xapp_chart_name+'-'+version+'.tgz'
+        request_path = self.repo_url+'/charts/'+xapp_chart_name+'-'+str(version)+'.tgz'
         try:
             response = self.retry_session.get(request_path, timeout=settings.HTTP_TIME_OUT)
         except Exception as err:
